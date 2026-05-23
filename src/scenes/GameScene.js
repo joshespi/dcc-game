@@ -998,8 +998,7 @@ var GameScene = new Phaser.Class({
           var tint = BOX_TIER_TINT[tier] || 0xcc7733;
 
           // Flash + shake box — scale based on tier
-          var tierRank = { bronze: 0, silver: 1, gold: 2, platinum: 3, legendary: 4, celestial: 5 };
-          var rank = tierRank[tier] || 0;
+          var rank = BOX_TIER_ORDER[tier] || 0;
           var popScale = 1.4 + rank * 0.12;
           scene.tweens.add({
             targets: box,
@@ -1091,8 +1090,7 @@ var GameScene = new Phaser.Class({
       if (enemy.overlapsRect(swingBox)) {
         enemy.takeDamage(damage);
         if (enemy.typeName === 'Rat') scene._aggroRatPack(enemy);
-        var atkSkill = scene.status.equippedWeapon ? 'melee' : 'unarmed';
-        var asu = scene.status.addSkillXP(atkSkill, 2);
+        var asu = scene.status.addSkillXP(scene.status.attackSkillName(), 2);
         if (asu) scene._onSkillUp(asu);
         var kbStr = (attackType === 'kick') ? 200 : 140;
         var kx = enemy.sprite.x - scene.carl.x();
@@ -1132,8 +1130,7 @@ var GameScene = new Phaser.Class({
     this.status.kills++;
 
     // Skill XP on kill
-    var killSkill = this.status.equippedWeapon ? 'melee' : 'unarmed';
-    var ksu = this.status.addSkillXP(killSkill, 8);
+    var ksu = this.status.addSkillXP(this.status.attackSkillName(), 8);
     if (ksu) this._onSkillUp(ksu);
 
     // First kill achievement
@@ -1356,8 +1353,7 @@ var GameScene = new Phaser.Class({
   },
 
   _onSkillUp: function (result) {
-    var names = { unarmed: 'UNARMED COMBAT', melee: 'MELEE', endurance: 'ENDURANCE', dodge: 'DODGE' };
-    var label = names[result.skill] || result.skill.toUpperCase();
+    var label = CrawlerStatus.SKILL_LABELS[result.skill] || result.skill.toUpperCase();
     this.messages.push('SKILL UP: ' + label + ' LEVEL ' + result.level + '.');
     this._floatText(this.carl.x(), this.carl.y() - 50, 'SKILL UP!', '#aaddff', 13);
   },
@@ -1750,9 +1746,9 @@ var GameScene = new Phaser.Class({
     // Overlay — fixed to camera so it survives the fadeOut
     var cam = this.cameras.main;
     var W = cam.width, H = cam.height;
-    var NAMED_FLOORS = { 3:1,4:1,5:1,6:1,7:1,8:1,9:1,11:1,12:1,15:1,16:1,17:1,18:1 };
-    var floorName = NAMED_FLOORS[nextFloor] ? MessageSystem.floorName(nextFloor) : null;
-    var label = floorName ? 'FLOOR ' + nextFloor + '\n' + floorName : 'FLOOR ' + nextFloor;
+    var floorName = MessageSystem.floorName(nextFloor);
+    var isNamed = floorName !== 'FLOOR ' + nextFloor;
+    var label = isNamed ? 'FLOOR ' + nextFloor + '\n' + floorName : 'FLOOR ' + nextFloor;
 
     var overlay = this.add.text(W / 2, H / 2, label, {
       fontFamily: 'monospace',
@@ -1811,6 +1807,15 @@ var GameScene = new Phaser.Class({
     });
   },
 
+  _spawnBossBox: function (tier, x, y) {
+    var box = this.physics.add.staticImage(x, y, 'loot_box');
+    box.setDepth(5).setTint(BOX_TIER_TINT[tier]);
+    box._opened = false; box._tier = tier;
+    box._contents = this._lootTableForTier(tier);
+    box._isBossBox = true;
+    this.lootBoxes.push(box);
+  },
+
   _onBossDeath: function (enemy) {
     var scene = this;
     // Stop taunt timer
@@ -1843,28 +1848,13 @@ var GameScene = new Phaser.Class({
     var hpPct = this.status.hpPercent();
     if (hpPct < 0.05) {
       this.messages.push('SILVER SURVIVOR\'S BOX AWARDED. YOU WERE AT DEATH\'S DOOR. THE AUDIENCE IS LOSING THEIR MINDS.');
-      var sbox = scene.physics.add.staticImage(enemy.sprite.x, enemy.sprite.y, 'loot_box');
-      sbox.setDepth(5).setTint(BOX_TIER_TINT.silver);
-      sbox._opened = false; sbox._tier = 'silver';
-      sbox._contents = scene._lootTableForTier('silver');
-      sbox._isBossBox = true;
-      scene.lootBoxes.push(sbox);
+      scene._spawnBossBox('silver', enemy.sprite.x, enemy.sprite.y);
     } else if (hpPct < 0.10) {
       this.messages.push('BRONZE SURVIVOR\'S BOX AWARDED. NEARLY DEAD. IMPRESSIVE, IF RECKLESS.');
-      var sbox2 = scene.physics.add.staticImage(enemy.sprite.x, enemy.sprite.y, 'loot_box');
-      sbox2.setDepth(5).setTint(BOX_TIER_TINT.bronze);
-      sbox2._opened = false; sbox2._tier = 'bronze';
-      sbox2._contents = scene._lootTableForTier('bronze');
-      sbox2._isBossBox = true;
-      scene.lootBoxes.push(sbox2);
+      scene._spawnBossBox('bronze', enemy.sprite.x, enemy.sprite.y);
     } else {
       this.messages.push('NEIGHBORHOOD BOSS DEFEATED. +' + enemy.xpValue + ' XP. DOOR UNSEALED. SOMETHING SHIFTS IN THE DUNGEON.');
-      var bossBox = scene.physics.add.staticImage(enemy.sprite.x, enemy.sprite.y, 'loot_box');
-      bossBox.setDepth(5).setTint(BOX_TIER_TINT.gold);
-      bossBox._opened = false; bossBox._tier = 'gold';
-      bossBox._contents = scene._lootTableForTier('gold');
-      bossBox._isBossBox = true;
-      scene.lootBoxes.push(bossBox);
+      scene._spawnBossBox('gold', enemy.sprite.x, enemy.sprite.y);
     }
 
     this.time.delayedCall(800, function () {

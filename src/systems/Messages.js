@@ -19,6 +19,7 @@ var MessageSystem = (function () {
     var msg = { text: text, type: type || 'system', ts: Date.now() };
     this._queue.push(msg);
     this._history.push(msg);
+    if (this._history.length > 200) this._history.shift();
     this._handlers.forEach(function (h) { h(msg); });
   };
 

@@ -410,6 +410,12 @@ var CrawlerStatus = (function () {
   return CrawlerStatus;
 })();
 
+CrawlerStatus.SKILL_LABELS = { unarmed: 'UNARMED COMBAT', melee: 'MELEE', endurance: 'ENDURANCE', dodge: 'DODGE' };
+
+CrawlerStatus.prototype.attackSkillName = function () {
+  return this.equippedWeapon ? 'melee' : 'unarmed';
+};
+
 // Sequential crawler numbers persist across browser sessions via localStorage
 CrawlerStatus._nextNumber = (function () {
   try { return parseInt(localStorage.getItem('dcc_crawler_seq') || '1', 10); } catch (e) { return 1; }

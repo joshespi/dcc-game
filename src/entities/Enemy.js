@@ -41,6 +41,7 @@ var EnemyFactory = (function () {
     this._wanderVx       = 0;
     this._wanderVy       = 0;
     this._everHit        = false;
+    this._hpPctLast      = -1;
 
     // HP bar — hidden until first hit
     var BAR_W = 28, BAR_H = 4;
@@ -140,10 +141,12 @@ var EnemyFactory = (function () {
     var sx = this.sprite.x, sy = this.sprite.y - 18;
     this._hpBarBg.setPosition(sx, sy);
     this._hpBarFill.setPosition(sx - BAR_W / 2, sy);
-    this._hpBarFill.setDisplaySize(Math.max(1, BAR_W * pct), 4);
-    // Color: green → yellow → red
-    var color = pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xccaa00 : 0xcc2222;
-    this._hpBarFill.setFillStyle(color);
+    if (pct !== this._hpPctLast) {
+      this._hpBarFill.setDisplaySize(Math.max(1, BAR_W * pct), 4);
+      var color = pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xccaa00 : 0xcc2222;
+      this._hpBarFill.setFillStyle(color);
+      this._hpPctLast = pct;
+    }
   };
 
   Enemy.prototype._die = function () {

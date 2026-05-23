@@ -48,12 +48,15 @@ var UIScene = new Phaser.Class({
     this._msgTimer = 0;
     this._currentMsg = null;
     this._invOpen    = false;
-    this._invDirty   = false;
+    this._invDirty   = true;
     this._shopOpen   = false;
     this._skillsOpen = false;
     this._potionCount = 0;
     this._gameScene = null;
     this._hudUnlocked = false;
+    this._spellWasReady = null;
+    this._surgeWasReady = null;
+    this._debuffStr     = null;
   },
 
   create: function () {
@@ -702,10 +705,10 @@ var UIScene = new Phaser.Class({
     ]);
 
     var SKILL_DEFS = [
-      { key: 'unarmed',   label: 'UNARMED COMBAT', effect: function(lvl){ return '+' + lvl + ' dmg unarmed'; } },
-      { key: 'melee',     label: 'MELEE',           effect: function(lvl){ return '+' + lvl + ' dmg w/ weapon'; } },
-      { key: 'endurance', label: 'ENDURANCE',        effect: function(lvl){ return '+' + (lvl * 3) + ' max HP'; } },
-      { key: 'dodge',     label: 'DODGE',            effect: function(lvl){ return (lvl * 2) + '% dodge chance'; } },
+      { key: 'unarmed',   effect: function(lvl){ return '+' + lvl + ' dmg unarmed'; } },
+      { key: 'melee',     effect: function(lvl){ return '+' + lvl + ' dmg w/ weapon'; } },
+      { key: 'endurance', effect: function(lvl){ return '+' + (lvl * 3) + ' max HP'; } },
+      { key: 'dodge',     effect: function(lvl){ return (lvl * 2) + '% dodge chance'; } },
     ];
 
     var BAR_W = 100, BAR_H = 6, ROW_H = 46;
@@ -713,12 +716,11 @@ var UIScene = new Phaser.Class({
 
     for (var i = 0; i < SKILL_DEFS.length; i++) {
       var sd = SKILL_DEFS[i];
-      var lvl = (status.skills && status.skills[sd.key]) || 0;
-      var xpPct = status.skillXpPercent ? status.skillXpPercent(sd.key) : 0;
+      var lvl = status.skills[sd.key];
+      var xpPct = status.skillXpPercent(sd.key);
       var ry = rowY0 + i * ROW_H;
 
-      // Skill name + level
-      this._skillsPanel.add(this.add.text(rowX, ry, sd.label, {
+      this._skillsPanel.add(this.add.text(rowX, ry, CrawlerStatus.SKILL_LABELS[sd.key], {
         fontFamily: 'monospace', fontSize: '10px', color: '#aabbdd'
       }).setOrigin(0, 0));
       this._skillsPanel.add(this.add.text(px + PW - 12, ry, 'LVL ' + lvl + ' / 15', {
@@ -789,7 +791,8 @@ var UIScene = new Phaser.Class({
   _toggleInventory: function () {
     this._invOpen = !this._invOpen;
     this._invPanel.setVisible(this._invOpen);
-    if (this._invOpen) { this._invScroll = 0; this._invDirty = true; }
+    if (this._invOpen) this._invScroll = 0;
+    this._invDirty = true;
   },
 
   markInventoryDirty: function () { this._invDirty = true; },
@@ -1149,7 +1152,7 @@ var UIScene = new Phaser.Class({
 
     if (this._invOpen && this._hudUnlocked && this._invDirty) {
       this._refreshInventory();
-      this._invDirty = false;
+      // dirty consumed by unified block below (also drives hotlist + potionCount)
     }
 
     // ── HP bar ────────────────────────────────────────────────────────────────
@@ -1291,24 +1294,23 @@ var UIScene = new Phaser.Class({
 
     // ── Active debuffs ────────────────────────────────────────────────────────
     var now2 = Date.now();
-    var activeDebuffs = [];
+    var newDebuffStr = '';
     if (status.debuffs && status.debuffs.length > 0) {
       for (var di = 0; di < status.debuffs.length; di++) {
-        if (status.debuffs[di].expiresAt > now2) activeDebuffs.push(status.debuffs[di].type);
+        if (status.debuffs[di].expiresAt > now2) {
+          newDebuffStr += (newDebuffStr ? '  ' : '') + '☠ ' + status.debuffs[di].type.toUpperCase();
+        }
       }
     }
-    if (activeDebuffs.length > 0) {
-      var debuffStr = activeDebuffs.map(function (d) { return '☠ ' + d.toUpperCase(); }).join('  ');
-      this._debuffText.setText(debuffStr);
-      if (!this._debuffPulseTween) {
+    if (newDebuffStr !== this._debuffStr) {
+      this._debuffStr = newDebuffStr;
+      this._debuffText.setText(newDebuffStr);
+      if (newDebuffStr && !this._debuffPulseTween) {
         this._debuffPulseTween = this.tweens.add({
           targets: this._debuffText, alpha: 0.3, duration: 600,
           yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
         });
-      }
-    } else {
-      this._debuffText.setText('');
-      if (this._debuffPulseTween) {
+      } else if (!newDebuffStr && this._debuffPulseTween) {
         this._debuffPulseTween.stop();
         this._debuffPulseTween = null;
         this._debuffText.setAlpha(1);
@@ -1321,30 +1323,36 @@ var UIScene = new Phaser.Class({
       this._spellFill.setDisplaySize(44, Math.floor(44 * frac));
       this._spellFill.setY(this.H - 52 + 44 * (1 - frac));
       var rdy = frac >= 1;
-      this._spellIcon.setColor(rdy ? '#ffffff' : '#664488');
-      this._spellBorder.setStrokeStyle(1, rdy ? 0xcc88ff : 0x553377);
+      if (rdy !== this._spellWasReady) {
+        this._spellWasReady = rdy;
+        this._spellIcon.setColor(rdy ? '#ffffff' : '#664488');
+        this._spellBorder.setStrokeStyle(1, rdy ? 0xcc88ff : 0x553377);
+      }
 
       var sfrac = gameScene.donut.getSurgeCooldownFraction();
       this._surgeFill.setDisplaySize(44, Math.floor(44 * sfrac));
       this._surgeFill.setY(this.H - 52 + 44 * (1 - sfrac));
       var srdy = sfrac >= 1;
-      this._surgeIcon.setColor(srdy ? '#ffffff' : '#226644');
-      this._surgeBorder.setStrokeStyle(1, srdy ? 0x66ffaa : 0x224433);
-    }
-
-    // _potionCount kept up-to-date by _refreshInventory (inv open) and hotlistUse callbacks
-    if (!this._invOpen) {
-      var pc = 0;
-      for (var pi = 0; pi < status.inventory.length; pi++) {
-        if (status.inventory[pi].type === 'potion') pc++;
+      if (srdy !== this._surgeWasReady) {
+        this._surgeWasReady = srdy;
+        this._surgeIcon.setColor(srdy ? '#ffffff' : '#226644');
+        this._surgeBorder.setStrokeStyle(1, srdy ? 0x66ffaa : 0x224433);
       }
-      this._potionCount = pc;
     }
-    var pots = this._potionCount;
-    this._potionText.setText(pots > 0 ? '[E] ' + pots + ' potion' + (pots > 1 ? 's' : '') : 'no potions');
 
-    // ── Hotlist bar ───────────────────────────────────────────────────────────
-    this._updateHotlistHUD(status);
+    if (this._invDirty) {
+      if (!this._invOpen) {
+        var pc = 0;
+        for (var pi = 0; pi < status.inventory.length; pi++) {
+          if (status.inventory[pi].type === 'potion') pc++;
+        }
+        this._potionCount = pc;
+      }
+      var pots = this._potionCount;
+      this._potionText.setText(pots > 0 ? '[E] ' + pots + ' potion' + (pots > 1 ? 's' : '') : 'no potions');
+      this._updateHotlistHUD(status);
+      this._invDirty = false;
+    }
 
     // ── Minimap ───────────────────────────────────────────────────────────────
     var dungeon = this.registry.get('dungeon');
