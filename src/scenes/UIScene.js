@@ -47,9 +47,10 @@ var UIScene = new Phaser.Class({
     this._messages = [];
     this._msgTimer = 0;
     this._currentMsg = null;
-    this._invOpen  = false;
-    this._invDirty = false;
-    this._shopOpen = false;
+    this._invOpen    = false;
+    this._invDirty   = false;
+    this._shopOpen   = false;
+    this._skillsOpen = false;
     this._potionCount = 0;
     this._gameScene = null;
     this._hudUnlocked = false;
@@ -227,7 +228,7 @@ var UIScene = new Phaser.Class({
 
     // Persistent mini controls line — stays dim in corner
     this._hint = this.add.text(W / 2, H - 48,
-      'WASD move   SPACE punch/kick   Q spell   E use   T consumable   1-0 hotlist   I inventory',
+      'WASD move   SPACE punch/kick   Q spell   E use   T consumable   1-0 hotlist   I inventory   K skills',
       { fontFamily: 'monospace', fontSize: '10px', color: '#3a2a4a' }
     ).setDepth(203).setOrigin(0.5);
     // Fade to very dim after 10s but never fully gone
@@ -284,7 +285,17 @@ var UIScene = new Phaser.Class({
     this.input.keyboard.on('keydown-I', function () {
       if (scene._tvOpen) { scene._dismissTV(); return; }
       if (!scene._hudUnlocked) return;
+      if (scene._skillsOpen) scene._closeSkillsPanel();
       scene._toggleInventory();
+    });
+
+    this.input.keyboard.on('keydown-K', function () {
+      if (scene._tvOpen) { scene._dismissTV(); return; }
+      if (!scene._hudUnlocked) return;
+      if (scene._skillsOpen) { scene._closeSkillsPanel(); return; }
+      if (scene._invOpen) scene._toggleInventory();
+      if (scene._shopOpen) scene._closeShopPanel();
+      scene._openSkillsPanel();
     });
 
     // ── 1-0 keys: dual-purpose ────────────────────────────────────────────────
@@ -393,6 +404,7 @@ var UIScene = new Phaser.Class({
     });
     this.input.keyboard.on('keydown-ESC', function () {
       if (scene._shopOpen) scene._closeShopPanel();
+      if (scene._skillsOpen) scene._closeSkillsPanel();
     });
 
     // Watch shopData registry for open/update/close
@@ -664,6 +676,72 @@ var UIScene = new Phaser.Class({
     if (this._shopPanel) { this._shopPanel.destroy(); this._shopPanel = null; }
     this._shopGoldTxt = null; this._shopRowsContainer = null;
     if (this._gameScene && this._gameScene._closeShop) this._gameScene._closeShop();
+  },
+
+  _openSkillsPanel: function () {
+    var status = this.registry.get('status');
+    if (!status) return;
+    this._skillsOpen = true;
+
+    var W = this.W, H = this.H;
+    var PW = 280, PH = 230;
+    var px = Math.floor((W - PW) / 2), py = Math.floor((H - PH) / 2);
+
+    if (this._skillsPanel) this._skillsPanel.destroy();
+    this._skillsPanel = this.add.container(0, 0).setDepth(310);
+
+    this._skillsPanel.add([
+      this.add.rectangle(px, py, PW, PH, 0x050813, 0.97).setOrigin(0, 0),
+      this.add.rectangle(px, py, PW, PH, 0x2244aa).setOrigin(0, 0).setFillStyle(0, 0).setStrokeStyle(1, 0x4466cc),
+      this.add.text(px + PW / 2, py + 10, '[ SKILLS ]', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#aaddff'
+      }).setOrigin(0.5, 0),
+      this.add.text(px + PW - 8, py + 10, 'K — CLOSE', {
+        fontFamily: 'monospace', fontSize: '8px', color: '#334466'
+      }).setOrigin(1, 0),
+    ]);
+
+    var SKILL_DEFS = [
+      { key: 'unarmed',   label: 'UNARMED COMBAT', effect: function(lvl){ return '+' + lvl + ' dmg unarmed'; } },
+      { key: 'melee',     label: 'MELEE',           effect: function(lvl){ return '+' + lvl + ' dmg w/ weapon'; } },
+      { key: 'endurance', label: 'ENDURANCE',        effect: function(lvl){ return '+' + (lvl * 3) + ' max HP'; } },
+      { key: 'dodge',     label: 'DODGE',            effect: function(lvl){ return (lvl * 2) + '% dodge chance'; } },
+    ];
+
+    var BAR_W = 100, BAR_H = 6, ROW_H = 46;
+    var rowX = px + 12, rowY0 = py + 34;
+
+    for (var i = 0; i < SKILL_DEFS.length; i++) {
+      var sd = SKILL_DEFS[i];
+      var lvl = (status.skills && status.skills[sd.key]) || 0;
+      var xpPct = status.skillXpPercent ? status.skillXpPercent(sd.key) : 0;
+      var ry = rowY0 + i * ROW_H;
+
+      // Skill name + level
+      this._skillsPanel.add(this.add.text(rowX, ry, sd.label, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#aabbdd'
+      }).setOrigin(0, 0));
+      this._skillsPanel.add(this.add.text(px + PW - 12, ry, 'LVL ' + lvl + ' / 15', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#ffdd88'
+      }).setOrigin(1, 0));
+
+      // XP bar
+      var barY = ry + 14;
+      this._skillsPanel.add(this.add.rectangle(rowX, barY, BAR_W, BAR_H, 0x112233).setOrigin(0, 0));
+      if (xpPct > 0) {
+        this._skillsPanel.add(this.add.rectangle(rowX, barY, Math.max(2, Math.floor(BAR_W * xpPct)), BAR_H, 0x4488cc).setOrigin(0, 0));
+      }
+
+      // Effect description
+      this._skillsPanel.add(this.add.text(rowX, ry + 24, sd.effect(lvl), {
+        fontFamily: 'monospace', fontSize: '9px', color: '#556677'
+      }).setOrigin(0, 0));
+    }
+  },
+
+  _closeSkillsPanel: function () {
+    this._skillsOpen = false;
+    if (this._skillsPanel) { this._skillsPanel.destroy(); this._skillsPanel = null; }
   },
 
   _refreshShopPanel: function (shopData) {

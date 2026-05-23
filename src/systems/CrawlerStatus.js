@@ -31,6 +31,9 @@ var CrawlerStatus = (function () {
     this.favorites = 5;
     this.gold   = 0;
     this.debuffs = [];  // [{ type, expiresAt, tickDamage, tickInterval, lastTick }]
+    // Train-by-use skills — level via gameplay, max 15
+    this.skills   = { unarmed: 3, melee: 1, endurance: 2, dodge: 1 };
+    this.skillXp  = { unarmed: 0, melee: 0, endurance: 0, dodge: 0 };
     // MP pool scales with INT. Regen rate scales with INT per lore.
     // INT*10 gives a workable pool — Donut's Magic Missile costs 10 MP/cast at level 1.
     this.mp    = this.stats.int * 10;
@@ -55,6 +58,10 @@ var CrawlerStatus = (function () {
     this.statPoints += 3;
     return { level: this.level };
   };
+
+  function _skillXpNeeded(level) {
+    return Math.floor(30 * Math.pow(level, 1.4));
+  }
 
   var VALID_STATS = ['str', 'con', 'dex', 'int', 'cha', 'luck'];
 
@@ -116,10 +123,32 @@ var CrawlerStatus = (function () {
     return this.hp - prev;
   };
 
+  // Returns { skill, level } if leveled up, null otherwise
+  CrawlerStatus.prototype.addSkillXP = function (skill, amount) {
+    if (!(skill in this.skills)) return null;
+    this.skillXp[skill] = (this.skillXp[skill] || 0) + amount;
+    if (this.skills[skill] >= 15) return null;
+    var needed = _skillXpNeeded(this.skills[skill]);
+    if (this.skillXp[skill] >= needed) {
+      this.skillXp[skill] -= needed;
+      this.skills[skill]++;
+      if (skill === 'endurance') { this.maxHp += 3; this.hp = Math.min(this.hp + 3, this.maxHp); }
+      return { skill: skill, level: this.skills[skill] };
+    }
+    return null;
+  };
+
+  CrawlerStatus.prototype.skillXpPercent = function (skill) {
+    var lvl = this.skills[skill] || 0;
+    if (lvl >= 15) return 1;
+    return (this.skillXp[skill] || 0) / _skillXpNeeded(lvl);
+  };
+
   CrawlerStatus.prototype.getMeleeDamage = function () {
     var base = 5 + Math.floor(this.stats.str * 1.5);
     var bonus = this.equippedWeapon ? this.equippedWeapon.damage : 0;
-    return base + bonus + Math.floor(Math.random() * 4);
+    var skillLvl = this.equippedWeapon ? this.skills.melee : this.skills.unarmed;
+    return base + bonus + skillLvl + Math.floor(Math.random() * 4);
   };
 
   CrawlerStatus.prototype.getSpellPower = function () {
@@ -338,6 +367,8 @@ var CrawlerStatus = (function () {
       followers: this.followers,
       favorites: this.favorites,
       gold:      this.gold,
+      skills:    Object.assign({}, this.skills),
+      skillXp:   Object.assign({}, this.skillXp),
     };
   };
 
@@ -366,6 +397,8 @@ var CrawlerStatus = (function () {
     s.followers = data.followers || 50;
     s.favorites = data.favorites || 5;
     s.gold      = data.gold      || 0;
+    s.skills  = Object.assign({ unarmed: 3, melee: 1, endurance: 2, dodge: 1 }, data.skills  || {});
+    s.skillXp = Object.assign({ unarmed: 0, melee: 0, endurance: 0, dodge: 0 }, data.skillXp || {});
     s.equippedWeapon = data.equippedWeaponIdx != null ? s.inventory[data.equippedWeaponIdx] : null;
     s.equippedArmor  = data.equippedArmorIdx  != null ? s.inventory[data.equippedArmorIdx]  : null;
     s.hotlist = data.hotlistIndices.map(function (idx) {

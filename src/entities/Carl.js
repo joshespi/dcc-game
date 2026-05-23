@@ -139,8 +139,8 @@ var Carl = (function () {
     var now = Date.now();
     if (now - this._iframeTimer < IFRAMES) return 0; // invincible
 
-    // LUCK: each point = 1% dodge chance
-    var dodgeChance = this.status.stats.luck * 0.01;
+    // LUCK: 1% per point; Dodge skill: 2% per level
+    var dodgeChance = this.status.stats.luck * 0.01 + (this.status.skills ? this.status.skills.dodge * 0.02 : 0);
     if (Math.random() < dodgeChance) {
       this._iframeTimer = now; // consume iframe so dodge can't rapid-fire
       if (this._onDodge) this._onDodge();

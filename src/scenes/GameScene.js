@@ -224,6 +224,8 @@ var GameScene = new Phaser.Class({
     });
     this.carl.onHit(function (dmg, src) {
       scene._onCarlHurt(dmg, src);
+      var su = scene.status.addSkillXP('endurance', 3);
+      if (su) scene._onSkillUp(su);
     });
     this.carl.onHeal(function (amt) {
       scene._floatText(scene.carl.x(), scene.carl.y() - 20, '+' + amt + ' HP', '#88ff88');
@@ -234,6 +236,8 @@ var GameScene = new Phaser.Class({
       scene.status.addViews(1500);
       _playDodge();
       if (Math.random() < 0.3) scene.messages.push(MessageSystem.donutReaction('dodge'));
+      var su = scene.status.addSkillXP('dodge', 4);
+      if (su) scene._onSkillUp(su);
     };
 
     // ── Donut callbacks ──────────────────────────────────────────────────────
@@ -1087,6 +1091,9 @@ var GameScene = new Phaser.Class({
       if (enemy.overlapsRect(swingBox)) {
         enemy.takeDamage(damage);
         if (enemy.typeName === 'Rat') scene._aggroRatPack(enemy);
+        var atkSkill = scene.status.equippedWeapon ? 'melee' : 'unarmed';
+        var asu = scene.status.addSkillXP(atkSkill, 2);
+        if (asu) scene._onSkillUp(asu);
         var kbStr = (attackType === 'kick') ? 200 : 140;
         var kx = enemy.sprite.x - scene.carl.x();
         var ky = enemy.sprite.y - scene.carl.y();
@@ -1123,6 +1130,11 @@ var GameScene = new Phaser.Class({
     }
 
     this.status.kills++;
+
+    // Skill XP on kill
+    var killSkill = this.status.equippedWeapon ? 'melee' : 'unarmed';
+    var ksu = this.status.addSkillXP(killSkill, 8);
+    if (ksu) this._onSkillUp(ksu);
 
     // First kill achievement
     if (!this._firstKillDone) {
@@ -1341,6 +1353,13 @@ var GameScene = new Phaser.Class({
         scene.messages.push('BORANT CORPORATION: LEVEL 10. ANOMALOUS SURVIVAL DETECTED. LEGAL HAS BEEN NOTIFIED.');
       });
     }
+  },
+
+  _onSkillUp: function (result) {
+    var names = { unarmed: 'UNARMED COMBAT', melee: 'MELEE', endurance: 'ENDURANCE', dodge: 'DODGE' };
+    var label = names[result.skill] || result.skill.toUpperCase();
+    this.messages.push('SKILL UP: ' + label + ' LEVEL ' + result.level + '.');
+    this._floatText(this.carl.x(), this.carl.y() - 50, 'SKILL UP!', '#aaddff', 13);
   },
 
   _onCarlHurt: function (dmg, source) {
