@@ -1,0 +1,17 @@
+{
+  "name": "dungeon-crawler-carl",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "serve": "npx serve . -p 8080"
+  },
+  "description": "> **Fan project. All rights to the *Dungeon Crawler Carl* universe belong to Matt Dinniman.** > This is a non-commercial labor of love by fans of the book series. No affiliation with the author or publisher. If you haven't read the books, go read them — they're incredible.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

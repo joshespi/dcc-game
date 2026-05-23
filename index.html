@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dungeon Crawler Carl</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0812;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    canvas { display: block; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script src="src/sprites.js"></script>
+  <script src="src/systems/SaveSystem.js"></script>
+  <script src="src/systems/CrawlerStatus.js"></script>
+  <script src="src/systems/Messages.js"></script>
+  <script src="src/dungeon/Generator.js"></script>
+  <script src="src/entities/Enemy.js"></script>
+  <script src="src/entities/Carl.js"></script>
+  <script src="src/entities/Donut.js"></script>
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/IntroScene.js"></script>
+  <script src="src/scenes/GameScene.js"></script>
+  <script src="src/scenes/UIScene.js"></script>
+  <script src="src/scenes/DeathScene.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
