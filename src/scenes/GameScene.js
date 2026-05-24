@@ -363,9 +363,9 @@ var GameScene = new Phaser.Class({
       return;
     }
 
-    // Knockdown stun — suppress Carl input
+    // Knockdown stun or shop open — suppress Carl input
     var nowMs = Date.now();
-    if (nowMs < this._knockdownUntil) {
+    if (nowMs < this._knockdownUntil || this.registry.get('shopOpen')) {
       this.carl.getSprite().setVelocity(0, 0);
     } else {
       this.carl.update(delta);
