@@ -37,6 +37,10 @@ var GameScene = new Phaser.Class({
     var MAP_W = 160, MAP_H = 160;
     this.MAP_W = MAP_W; this.MAP_H = MAP_H;
 
+    // Reset any registry state that may persist across floor transitions
+    this.registry.set('shopOpen', false);
+    this._nearestLootBox = null;
+
     // ── Generate dungeon ────────────────────────────────────────────────────
     var gen = new DungeonGenerator(MAP_W, MAP_H);
     var dungeon = gen.generate(this.currentFloor);
@@ -551,20 +555,23 @@ var GameScene = new Phaser.Class({
       // UIScene owns E while shop is open
     } else if (Phaser.Input.Keyboard.JustDown(this.interactKey) && nowMs - this._interactCd > 600) {
       this._interactCd = nowMs;
-      // Priority: stairs > loot box > corpse > merchant > potion
+      // Priority: stairs > merchant > loot box > corpse > potion
+      // Merchant beats loot so claimed boxes don't block Tally in the safe room.
       var didStairs = this._checkStairsInteract();
       if (!didStairs) {
-        var lootOpened = this._checkLootInteract();
-        if (!lootOpened) lootOpened = this._checkCorpseInteract();
-        if (!lootOpened) {
-          if (this._nearBopca) {
-            this._openShop();
-          } else if (this.status.hasPotions()) {
-            var healed = this.status.usePotion();
-            this._floatText(this.carl.x(), this.carl.y() - 20, '+' + healed + ' HP', '#88ff88');
-            this.messages.push(MessageSystem.potion(healed));
-          } else {
-            this.messages.push(MessageSystem.noHeal());
+        if (this._nearBopca) {
+          this._openShop();
+        } else {
+          var lootOpened = this._checkLootInteract();
+          if (!lootOpened) lootOpened = this._checkCorpseInteract();
+          if (!lootOpened) {
+            if (this.status.hasPotions()) {
+              var healed = this.status.usePotion();
+              this._floatText(this.carl.x(), this.carl.y() - 20, '+' + healed + ' HP', '#88ff88');
+              this.messages.push(MessageSystem.potion(healed));
+            } else {
+              this.messages.push(MessageSystem.noHeal());
+            }
           }
         }
       }
@@ -1565,7 +1572,7 @@ var GameScene = new Phaser.Class({
     }
 
     // Check nearest Bopca merchant
-    var BOPCA_R2 = 56 * 56;
+    var BOPCA_R2 = 80 * 80;
     this._nearBopca = null;
     for (var bpi = 0; bpi < this._bopcas.length; bpi++) {
       var bp = this._bopcas[bpi];
@@ -1675,9 +1682,8 @@ var GameScene = new Phaser.Class({
     if (dx * dx + dy * dy > 2500) return false; // 50px radius
 
     if (!this._stairsUnlocked) {
-      // Tell them how long is left
       this.messages.push(MessageSystem.stairsLocked(this.currentFloor));
-      return true; // consumed the interact
+      return false; // don't swallow E — loot/other interactions still fire
     }
     this._descend();
     return true;
