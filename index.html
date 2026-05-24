@@ -18,19 +18,26 @@
 </head>
 <body>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-  <script src="src/sprites.js"></script>
-  <script src="src/systems/SaveSystem.js"></script>
-  <script src="src/systems/CrawlerStatus.js"></script>
-  <script src="src/systems/Messages.js"></script>
-  <script src="src/dungeon/Generator.js"></script>
-  <script src="src/entities/Enemy.js"></script>
-  <script src="src/entities/Carl.js"></script>
-  <script src="src/entities/Donut.js"></script>
-  <script src="src/scenes/BootScene.js"></script>
-  <script src="src/scenes/IntroScene.js"></script>
-  <script src="src/scenes/GameScene.js"></script>
-  <script src="src/scenes/UIScene.js"></script>
-  <script src="src/scenes/DeathScene.js"></script>
-  <script src="src/main.js"></script>
+  <script>
+    var GAME_VERSION = '20260524-1';
+    [
+      'src/sprites.js',
+      'src/systems/SaveSystem.js',
+      'src/systems/CrawlerStatus.js',
+      'src/systems/Messages.js',
+      'src/dungeon/Generator.js',
+      'src/entities/Enemy.js',
+      'src/entities/Carl.js',
+      'src/entities/Donut.js',
+      'src/scenes/BootScene.js',
+      'src/scenes/IntroScene.js',
+      'src/scenes/GameScene.js',
+      'src/scenes/UIScene.js',
+      'src/scenes/DeathScene.js',
+      'src/main.js',
+    ].forEach(function (src) {
+      document.write('<script src="' + src + '?v=' + GAME_VERSION + '"><\/script>');
+    });
+  </script>
 </body>
 </html>
