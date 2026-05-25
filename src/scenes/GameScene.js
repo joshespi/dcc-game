@@ -566,9 +566,13 @@ var GameScene = new Phaser.Class({
           if (!lootOpened) lootOpened = this._checkCorpseInteract();
           if (!lootOpened) {
             if (this.status.hasPotions()) {
-              var healed = this.status.usePotion();
-              this._floatText(this.carl.x(), this.carl.y() - 20, '+' + healed + ' HP', '#88ff88');
-              this.messages.push(MessageSystem.potion(healed));
+              if (this.status.potionOnCooldown()) {
+                this.messages.push(MessageSystem.potionCooldown(this.status.potionCooldownRemainSec()));
+              } else {
+                var healed = this.status.usePotion();
+                this._floatText(this.carl.x(), this.carl.y() - 20, '+' + healed + ' HP', '#88ff88');
+                this.messages.push(MessageSystem.potion(healed));
+              }
             } else {
               this.messages.push(MessageSystem.noHeal());
             }

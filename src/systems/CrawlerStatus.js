@@ -23,6 +23,7 @@ var CrawlerStatus = (function () {
     this.equippedWeapon = null;
     this.equippedArmor  = null;
     this._lastDamageTime = 0;
+    this._potionCdUntil  = 0;
     this.tutorialComplete    = false;
     this.firstSafeRoomDone   = false;
     // Social metrics — accumulate during the run; Floor 1 starts with a small seed
@@ -206,12 +207,14 @@ var CrawlerStatus = (function () {
     var item = this.hotlist[slot];
     if (!item) return { used: false, healed: 0 };
     if (item.type === 'potion') {
+      if (this.potionOnCooldown()) return { used: false, healed: 0, onCooldown: true };
       var idx = this.inventory.indexOf(item);
       if (idx === -1) { this.hotlist[slot] = null; return { used: false, healed: 0 }; }
       this.inventory.splice(idx, 1);
       // Crafted bandages carry a fixed healAmount; real potions use the level-scaled formula
       var healAmt = item.healAmount != null ? item.healAmount : this._potionHeal();
       var healed = this.heal(healAmt);
+      this._potionCdUntil = Date.now() + this.potionCooldownMs();
       this.hotlist[slot] = null;
       var next = this._findInInventory('potion');
       if (next) this.hotlist[slot] = next;
@@ -251,7 +254,21 @@ var CrawlerStatus = (function () {
     return 30 + this.level * 5 + this.stats.con;
   };
 
+  // CON 6 = 15s (Carl's confirmed lore cooldown), CON 2 = 95s (~Donut's 2-min lore cooldown)
+  CrawlerStatus.prototype.potionCooldownMs = function () {
+    return Math.max(10000, 135000 - 20000 * this.stats.con);
+  };
+
+  CrawlerStatus.prototype.potionOnCooldown = function () {
+    return Date.now() < this._potionCdUntil;
+  };
+
+  CrawlerStatus.prototype.potionCooldownRemainSec = function () {
+    return Math.ceil(Math.max(0, this._potionCdUntil - Date.now()) / 1000);
+  };
+
   CrawlerStatus.prototype.usePotion = function () {
+    if (this.potionOnCooldown()) return 0;
     var idx = -1;
     for (var i = 0; i < this.inventory.length; i++) {
       if (this.inventory[i].type === 'potion') { idx = i; break; }
@@ -259,6 +276,7 @@ var CrawlerStatus = (function () {
     if (idx === -1) return 0;
     var item = this.inventory.splice(idx, 1)[0];
     var healAmt = item.healAmount != null ? item.healAmount : this._potionHeal();
+    this._potionCdUntil = Date.now() + this.potionCooldownMs();
     return this.heal(healAmt);
   };
 
@@ -376,6 +394,7 @@ var CrawlerStatus = (function () {
     // Bypass the constructor so _nextNumber isn't incremented for a restored crawler
     var s = Object.create(CrawlerStatus.prototype);
     s._lastDamageTime = 0;
+    s._potionCdUntil  = 0;
     s.debuffs = [];
     s.level         = data.level;
     s.xp            = data.xp;

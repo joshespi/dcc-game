@@ -133,6 +133,10 @@ var MessageSystem = (function () {
     return 'NO POTIONS REMAINING. BORANT CORPORATION SENDS ITS CONDOLENCES.';
   };
 
+  MessageSystem.potionCooldown = function (sec) {
+    return 'POTION ON COOLDOWN. ' + sec + 'S REMAINING. BORANT ADVISES PATIENCE.';
+  };
+
   MessageSystem.shopBuy = function (itemName, cost) {
     var lines = [
       'TRANSACTION COMPLETE. TALLY WAVES GOODBYE WITHOUT MOVING ANY MUSCLES.',
