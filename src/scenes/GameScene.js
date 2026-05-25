@@ -597,7 +597,7 @@ var GameScene = new Phaser.Class({
         if (enemy.overlapsRect(mr)) {
           var dmg = m.damage || scene.status.getSpellPower();
           enemy.takeDamage(dmg);
-          scene._floatText(enemy.sprite.x, enemy.sprite.y - 14, String(dmg), '#aaddff', 12);
+          scene._floatText(enemy.sprite.x + 18, enemy.sprite.y - 28, String(dmg), '#aaddff', 16);
           if (enemy.typeName === 'Rat') scene._aggroRatPack(enemy);
           m.setActive(false).setVisible(false).destroy();
           _playPickup();
@@ -640,6 +640,11 @@ var GameScene = new Phaser.Class({
     this._checkSafeRoomEntry();
     this._checkGuildHallEntry();
     this._checkBossRoomEntry();
+  },
+
+  shutdown: function () {
+    this.tweens.killTweensOf(this._proximityPrompt);
+    this._lootPromptPulsing = false;
   },
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -960,33 +965,53 @@ var GameScene = new Phaser.Class({
   // Lore-accurate opening sequence: boxes float up, line up by tier, pop one by one
   _openLootSequence: function (boxes) {
     var scene = this;
+    var MAX_VISUAL = 8;
     this._lootSequenceRunning = true;
 
     boxes.sort(function (a, b) {
       return (BOX_TIER_ORDER[a._tier] || 0) - (BOX_TIER_ORDER[b._tier] || 0);
     });
 
-    var cx = scene.carl.x();
-    var cy = scene.carl.y() - 80;
-    // Cap total spread to 8 boxes at 36px — compress spacing for larger stacks
-    var spacing = boxes.length > 1 ? Math.min(36, (7 * 36) / (boxes.length - 1)) : 36;
-    var startX = cx - ((boxes.length - 1) * spacing) / 2;
+    // Overflow (lowest-tier) boxes beyond MAX_VISUAL: apply silently, no animation
+    var overflowCount = Math.max(0, boxes.length - MAX_VISUAL);
+    for (var s = 0; s < overflowCount; s++) {
+      var sb = boxes[s];
+      var tier = sb._tier || 'bronze';
+      var sContents = Array.isArray(sb._contents) ? sb._contents : (sb._contents ? [sb._contents] : []);
+      for (var sc = 0; sc < sContents.length; sc++) {
+        var sItem = sContents[sc];
+        scene.status.addItem(sItem);
+        scene._markInvDirty();
+        var sDet = scene._buildItemDetail(sItem);
+        scene.messages.push('[' + tier.toUpperCase() + ' BOX] ' + sItem.name + (sDet ? ' — ' + sDet : ''));
+      }
+      if (sb.destroy) sb.destroy();
+    }
+
+    var animated = boxes.slice(overflowCount);
 
     scene.messages.push('OPENING ' + boxes.length + ' LOOT BOX' + (boxes.length > 1 ? 'ES' : '') + '. BRONZE FIRST. BORANT CORPORATION GIFT DELIVERY SERVICE.');
 
+    if (animated.length === 0) {
+      scene._lootSequenceRunning = false;
+      return;
+    }
+
+    var cx = scene.carl.x();
+    var cy = scene.carl.y() - 80;
+    var spacing = 36;
+    var startX = cx - ((animated.length - 1) * spacing) / 2;
+
     // Phase 1: float each box to its lineup position (staggered)
     var readyCount = 0;
-    for (var i = 0; i < boxes.length; i++) {
+    for (var i = 0; i < animated.length; i++) {
       (function (box, idx) {
         var targetX = startX + idx * spacing;
         var targetY = cy;
-        var startPX = box.x, startPY = box.y;
-        var elapsed = 0;
         var duration = 500;
         var delay = idx * 80;
 
         scene.time.delayedCall(delay, function () {
-          // Animate float using tweens
           scene.tweens.add({
             targets: box,
             x: targetX,
@@ -995,17 +1020,17 @@ var GameScene = new Phaser.Class({
             ease: 'Cubic.Out',
             onComplete: function () {
               readyCount++;
-              if (readyCount === boxes.length) scene._popLootBoxes(boxes);
+              if (readyCount === animated.length) scene._popLootBoxes(animated);
             }
           });
         });
-      })(boxes[i], i);
+      })(animated[i], i);
     }
   },
 
   _popLootBoxes: function (boxes) {
     var scene = this;
-    var popDelay = 300;
+    var popDelay = 160;
     var poppedCount = 0;
 
     for (var i = 0; i < boxes.length; i++) {
@@ -1093,7 +1118,6 @@ var GameScene = new Phaser.Class({
   },
 
   _showCombatHint: function () {
-    var scene = this;
     var W = this.cameras.main.width;
     var H = this.cameras.main.height;
     var txt = this.add.text(W / 2, H * 0.42, 'SPACE  attack', {
@@ -1101,12 +1125,9 @@ var GameScene = new Phaser.Class({
       stroke: '#000000', strokeThickness: 4,
     }).setScrollFactor(0).setDepth(200).setOrigin(0.5).setAlpha(0);
     this.tweens.add({
-      targets: txt, alpha: 1, duration: 250,
-      onComplete: function () {
-        scene.time.delayedCall(2200, function () {
-          scene.tweens.add({ targets: txt, alpha: 0, duration: 600, onComplete: function () { txt.destroy(); } });
-        });
-      }
+      targets: txt, alpha: { from: 0, to: 1 }, duration: 250,
+      hold: 2200, yoyo: true,
+      onComplete: function () { txt.destroy(); }
     });
   },
 
@@ -1137,8 +1158,8 @@ var GameScene = new Phaser.Class({
           ? 'CRIT! ' + damage
           : (attackType === 'kick') ? 'KICK! ' + damage : 'PUNCH! ' + damage;
         var color = isCrit ? '#ffff44' : '#ffccaa';
-        var size  = isCrit ? 14 : 11;
-        scene._floatText(enemy.sprite.x, enemy.sprite.y - 14, label, color, size);
+        var size  = isCrit ? 19 : 15;
+        scene._floatText(enemy.sprite.x + 18, enemy.sprite.y - 28, label, color, size);
         if (isCrit) {
           scene.status.addViews(2500);
           _playCrit();
@@ -1581,7 +1602,6 @@ var GameScene = new Phaser.Class({
     var nearest = null;
     var nearDist2 = Infinity;
 
-    // Find nearest unopened box within range
     for (var i = 0; i < this.lootBoxes.length; i++) {
       var box = this.lootBoxes[i];
       if (box._opened) continue;
