@@ -255,7 +255,7 @@ var UIScene = new Phaser.Class({
     this._srBannerRoom = null; // tracks which room banner is showing
 
     // ── TV panel (shown on first visit, dismissed by any key) ─────────────────
-    this._tvPanel = this.add.container(0, 0).setDepth(350).setVisible(false);
+    this._tvPanel = this.add.container(0, -Math.round(H * 0.28)).setDepth(350).setVisible(false);
     var tvBg     = this.add.rectangle(W / 2, H / 2, 560, 220, 0x080614, 0.97).setOrigin(0.5);
     var tvBorder = this.add.rectangle(W / 2, H / 2, 560, 220, 0x997733)
       .setOrigin(0.5).setFillStyle(0, 0).setStrokeStyle(2, 0xffdd77);
@@ -1269,9 +1269,17 @@ var UIScene = new Phaser.Class({
       this.tweens.killTweensOf(this._srBanner);
       this.tweens.killTweensOf(this._srSubBanner);
       if (srName) {
+        var scene = this;
         this._srBanner.setText(srName).setAlpha(0);
         this._srSubBanner.setAlpha(0);
-        this.tweens.add({ targets: [this._srBanner, this._srSubBanner], alpha: 1, duration: 600 });
+        this.tweens.add({
+          targets: [this._srBanner, this._srSubBanner], alpha: 1, duration: 600,
+          onComplete: function () {
+            scene.time.delayedCall(2000, function () {
+              scene.tweens.add({ targets: [scene._srBanner, scene._srSubBanner], alpha: 0, duration: 800 });
+            });
+          }
+        });
       } else {
         this.tweens.add({ targets: [this._srBanner, this._srSubBanner], alpha: 0, duration: 400 });
       }

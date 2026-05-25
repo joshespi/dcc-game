@@ -68,6 +68,7 @@ var GameScene = new Phaser.Class({
     this._safeRooms        = dungeon.safeRooms;
     this._visitedSafeRooms = {};   // name → true once entered
     this._currentSafeRoom  = null; // room Carl is currently inside, or null
+    this._idleTVTimer      = null; // fires showTV after idle timeout in safe room
     this.registry.set('currentSafeRoom', null);
 
     // ── Fog of war ─────────────────────────────────────────────────────────────
@@ -645,6 +646,7 @@ var GameScene = new Phaser.Class({
   shutdown: function () {
     this.tweens.killTweensOf(this._proximityPrompt);
     this._lootPromptPulsing = false;
+    if (this._idleTVTimer) { this._idleTVTimer.remove(); this._idleTVTimer = null; }
   },
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -1698,9 +1700,17 @@ var GameScene = new Phaser.Class({
 
     if (entered === this._currentSafeRoom) return; // no change
 
+    if (this._idleTVTimer) { this._idleTVTimer.remove(); this._idleTVTimer = null; }
+
     this._currentSafeRoom = entered;
     this.registry.set('currentSafeRoom', entered ? { name: entered.name } : null);
     if (!entered) return; // left a safe room, no message
+
+    var scene = this;
+    this._idleTVTimer = this.time.delayedCall(10000, function () {
+      scene._idleTVTimer = null;
+      if (scene._currentSafeRoom === entered) scene.registry.set('showTV', entered.name);
+    });
 
     var isFirst = !this._visitedSafeRooms[entered.name];
     this._visitedSafeRooms[entered.name] = true;
@@ -1708,7 +1718,6 @@ var GameScene = new Phaser.Class({
     this.messages.push(MessageSystem.safeRoomEnter(entered.name, isFirst));
 
     if (isFirst) {
-      var scene = this;
       // TV panel: show after entry message settles
       this.time.delayedCall(3500, function () {
         scene.registry.set('showTV', entered.name);
