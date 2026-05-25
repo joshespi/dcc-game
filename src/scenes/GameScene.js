@@ -160,13 +160,15 @@ var GameScene = new Phaser.Class({
 
     // Proximity prompt — single reusable text shown near nearest interactable
     this._proximityPrompt = this.add.text(0, 0, '', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#ffdd88',
-      stroke: '#000000', strokeThickness: 2,
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd88',
+      stroke: '#000000', strokeThickness: 3,
     }).setDepth(55).setOrigin(0.5, 1).setAlpha(0);
+    this._lootPromptPulsing = false;
 
     // ── Achievement flags ────────────────────────────────────────────────────
     this._firstKillDone        = this.status.kills > 0; // don't re-fire on floor change
     this._unarmedKillDone      = this.status.kills > 0; // Bronze Weapon Box — one-time
+    this._combatHintShown      = this.status.kills > 0; // one-time on first aggro
     this._higherLevelKillDone  = false; // Bronze Adventurer Box — one-time per floor
     this._knockdownUntil      = 0; // ms timestamp — Carl stunned until then
     var curViews = this.status.views, curFollowers = this.status.followers;
@@ -477,6 +479,11 @@ var GameScene = new Phaser.Class({
         if (_carlInSafe) { e._aggroed = false; }
 
         e.update(scene.carl.x(), scene.carl.y(), delta, scene.enemyMissiles, scene.corpses);
+
+        if (!scene._combatHintShown && e._aggroed) {
+          scene._combatHintShown = true;
+          scene._showCombatHint();
+        }
 
         // Melee enemy touching Carl
         if (e.isMelee && e.canMeleeHit(scene.carl.x(), scene.carl.y())) {
@@ -1084,6 +1091,24 @@ var GameScene = new Phaser.Class({
     this.cameras.main.flash(200, 255, 230, 100);
   },
 
+  _showCombatHint: function () {
+    var scene = this;
+    var W = this.cameras.main.width;
+    var H = this.cameras.main.height;
+    var txt = this.add.text(W / 2, H * 0.42, 'SPACE  attack', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd57',
+      stroke: '#000000', strokeThickness: 4,
+    }).setScrollFactor(0).setDepth(200).setOrigin(0.5).setAlpha(0);
+    this.tweens.add({
+      targets: txt, alpha: 1, duration: 250,
+      onComplete: function () {
+        scene.time.delayedCall(2200, function () {
+          scene.tweens.add({ targets: txt, alpha: 0, duration: 600, onComplete: function () { txt.destroy(); } });
+        });
+      }
+    });
+  },
+
   _aggroRatPack: function (hitRat) {
     var R2 = 160 * 160;
     this.enemies.forEach(function (other) {
@@ -1604,26 +1629,39 @@ var GameScene = new Phaser.Class({
           ? '[E] collect (' + packedCount + ' in pack)'
           : '[E] collect for safe room';
       }
-      p.setText(label).setPosition(nearest.x, nearest.y - 24).setAlpha(1);
+      p.setText(label).setPosition(nearest.x, nearest.y - 28).setAlpha(1);
     } else if (inSafe && packedCount > 0) {
       var packLabel = '[E] open ' + packedCount + ' box' + (packedCount > 1 ? 'es' : '') + ' from pack';
-      p.setText(packLabel).setPosition(cx, cy - 32).setAlpha(1);
+      p.setText(packLabel).setPosition(cx, cy - 36).setAlpha(1);
     } else if (this._nearestCorpse) {
       var corp = this._nearestCorpse;
       var lootCount = corp.items.length;
       var corpLabel = lootCount > 0
         ? '[E] loot ' + corp.typeName + ' (' + lootCount + ' item' + (lootCount > 1 ? 's' : '') + ')'
         : '[E] loot ' + corp.typeName;
-      p.setText(corpLabel).setPosition(corp.sprite.x, corp.sprite.y - 24).setAlpha(1);
+      p.setText(corpLabel).setPosition(corp.sprite.x, corp.sprite.y - 28).setAlpha(1);
     } else if (this._nearBopca) {
       p.setText('[E] shop  (' + this.status.gold + 'g)')
-        .setPosition(this._nearBopca.x, this._nearBopca.y - 22).setAlpha(1);
+        .setPosition(this._nearBopca.x, this._nearBopca.y - 26).setAlpha(1);
     } else if (nearStairs) {
       var stLabel = this._stairsUnlocked ? '[E] descend' : '[E] stairs  (sealed)';
       var stX = st.x * 32 + 16, stY = st.y * 32 + 16;
-      p.setText(stLabel).setPosition(stX, stY - 24).setAlpha(1);
+      p.setText(stLabel).setPosition(stX, stY - 28).setAlpha(1);
     } else {
       p.setAlpha(0);
+    }
+
+    var isVisible = p.alpha > 0;
+    if (isVisible && !this._lootPromptPulsing) {
+      this._lootPromptPulsing = true;
+      this.tweens.add({
+        targets: p, scaleX: 1.1, scaleY: 1.1,
+        duration: 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+      });
+    } else if (!isVisible && this._lootPromptPulsing) {
+      this._lootPromptPulsing = false;
+      this.tweens.killTweensOf(p);
+      p.setScale(1);
     }
   },
 

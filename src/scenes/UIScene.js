@@ -232,11 +232,11 @@ var UIScene = new Phaser.Class({
     // Persistent mini controls line — stays dim in corner
     this._hint = this.add.text(W / 2, H - 48,
       'WASD move   SPACE punch/kick   Q spell   E use   T consumable   1-0 hotlist   I inventory   K skills',
-      { fontFamily: 'monospace', fontSize: '10px', color: '#3a2a4a' }
+      { fontFamily: 'monospace', fontSize: '10px', color: '#998aaa' }
     ).setDepth(203).setOrigin(0.5);
-    // Fade to very dim after 10s but never fully gone
-    this.time.delayedCall(10000, function () {
-      this.tweens.add({ targets: this._hint, alpha: 0.4, duration: 2000 });
+    // Fade to dim after 14s — stays legible
+    this.time.delayedCall(14000, function () {
+      this.tweens.add({ targets: this._hint, alpha: 0.25, duration: 3000 });
     }, [], this);
 
     // ── Inventory panel (hidden by default) ──────────────────────────────────
