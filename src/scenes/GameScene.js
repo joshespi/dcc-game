@@ -209,10 +209,11 @@ var GameScene = new Phaser.Class({
       missile.setActive(false).setVisible(false).destroy();
     });
 
-    // Enemy missile hits Carl
+    // Enemy missile hits Carl — ignored if Carl is in a safe room
     this.physics.add.overlap(this.carl.getSprite(), this.enemyMissiles, function (carlSpr, missile) {
       if (!missile.active) return;
       missile.setActive(false).setVisible(false).destroy();
+      if (scene.isInSafeRoom()) return;
       var dmg = scene.carl.receiveHit(missile.damage || 6, 'projectile');
       if (dmg > 0) { scene._lastKiller = 'Fairy'; scene._onCarlHurt(dmg, 'projectile'); }
     });
@@ -554,6 +555,16 @@ var GameScene = new Phaser.Class({
             scene._bossThrowJunk(e);
           }
         }
+      }
+    });
+
+    // Destroy enemy missiles that cross into safe/guild tiles
+    this.enemyMissiles.getChildren().forEach(function (m) {
+      if (!m.active) return;
+      var mtx = Math.floor(m.x / 32), mty = Math.floor(m.y / 32);
+      var mtile = _eTiles[mty] && _eTiles[mty][mtx];
+      if (mtile === DungeonGenerator.SAFE || mtile === DungeonGenerator.GUILD) {
+        m.setActive(false).setVisible(false).destroy();
       }
     });
 
