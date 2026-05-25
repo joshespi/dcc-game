@@ -144,7 +144,7 @@ var Donut = (function () {
       var ty = carlY - Math.sin(angle) * FOLLOW_DIST;
       var ddx = tx - this.sprite.x;
       var ddy = ty - this.sprite.y;
-      var dd  = Math.sqrt(ddx * ddx + ddy * ddy);
+      var dd  = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
       var spd = Math.min(FOLLOW_SPEED, dd * 6); // ease in
       this.sprite.setVelocity((ddx / dd) * spd, (ddy / dd) * spd);
     } else {

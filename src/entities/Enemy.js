@@ -79,7 +79,7 @@ var EnemyFactory = (function () {
 
     var dx   = targetX - this.sprite.x;
     var dy   = targetY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
+    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
     if (dist < this.aggroRange && !this._aggroed) {
       this._tryAggro();
@@ -492,7 +492,7 @@ var EnemyFactory = (function () {
 
     var dx = carlX - this.sprite.x;
     var dy = carlY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
+    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
     if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
 
@@ -651,7 +651,11 @@ var EnemyFactory = (function () {
 
     if (nearest && nearDist2 < 400) {
       if (!nearest._consumed) {
-        nearest._grubsEating = (nearest._grubsEating || 0) + 1;
+        if (this._eatingCorpse !== nearest) {
+          if (this._eatingCorpse) this._eatingCorpse._grubsEating = Math.max(0, (this._eatingCorpse._grubsEating || 0) - 1);
+          this._eatingCorpse = nearest;
+          nearest._grubsEating = (nearest._grubsEating || 0) + 1;
+        }
         if (nearest._grubsEating >= 2) {
           nearest._consumed = true; // prevent double-destroy in same frame
           if (nearest.sprite) { nearest.sprite.destroy(); nearest.sprite = null; }
@@ -663,16 +667,22 @@ var EnemyFactory = (function () {
         }
       }
       this.sprite.setVelocity(0, 0);
-    } else if (nearest) {
-      var tx = nearest.sprite.x - this.sprite.x;
-      var ty = nearest.sprite.y - this.sprite.y;
-      var td = Math.sqrt(tx * tx + ty * ty) || 1;
-      this.sprite.setVelocity((tx / td) * this.speed, (ty / td) * this.speed);
     } else {
-      // No corpse — drift toward Carl at half speed
-      var cx = carlX - this.sprite.x, cy = carlY - this.sprite.y;
-      var cd = Math.sqrt(cx * cx + cy * cy) || 1;
-      this.sprite.setVelocity((cx / cd) * this.speed * 0.5, (cy / cd) * this.speed * 0.5);
+      if (this._eatingCorpse) {
+        this._eatingCorpse._grubsEating = Math.max(0, (this._eatingCorpse._grubsEating || 0) - 1);
+        this._eatingCorpse = null;
+      }
+      if (nearest) {
+        var tx = nearest.sprite.x - this.sprite.x;
+        var ty = nearest.sprite.y - this.sprite.y;
+        var td = Math.sqrt(tx * tx + ty * ty) || 1;
+        this.sprite.setVelocity((tx / td) * this.speed, (ty / td) * this.speed);
+      } else {
+        // No corpse — drift toward Carl at half speed
+        var cx = carlX - this.sprite.x, cy = carlY - this.sprite.y;
+        var cd = Math.sqrt(cx * cx + cy * cy) || 1;
+        this.sprite.setVelocity((cx / cd) * this.speed * 0.5, (cy / cd) * this.speed * 0.5);
+      }
     }
   };
 

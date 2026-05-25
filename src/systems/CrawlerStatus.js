@@ -43,11 +43,12 @@ var CrawlerStatus = (function () {
 
   CrawlerStatus.prototype.addXP = function (amount) {
     this.xp += amount;
-    if (this.xp >= this.xpToNext) {
+    var results = [];
+    while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext;
-      return this._levelUp();
+      results.push(this._levelUp());
     }
-    return null;
+    return results.length ? results : null;
   };
 
   CrawlerStatus.prototype._levelUp = function () {
@@ -420,7 +421,7 @@ var CrawlerStatus = (function () {
     s.skillXp = Object.assign({ unarmed: 0, melee: 0, endurance: 0, dodge: 0 }, data.skillXp || {});
     s.equippedWeapon = data.equippedWeaponIdx != null ? s.inventory[data.equippedWeaponIdx] : null;
     s.equippedArmor  = data.equippedArmorIdx  != null ? s.inventory[data.equippedArmorIdx]  : null;
-    s.hotlist = data.hotlistIndices.map(function (idx) {
+    s.hotlist = (data.hotlistIndices || []).map(function (idx) {
       return idx != null ? s.inventory[idx] : null;
     });
     return s;

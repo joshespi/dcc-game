@@ -217,14 +217,13 @@ var DungeonGenerator = (function () {
     }
 
     // Randomly extend some alleys into dead-ends for maze feel
-    var rng = Math;
     for (var i = 0; i < 6; i++) {
-      var sx = b.x + 1 + Math.floor(rng.random() * (b.w - 2));
-      var sy = b.y + 1 + Math.floor(rng.random() * (b.h - 2));
-      var dir = Math.floor(rng.random() * 4);
+      var sx = b.x + 1 + Math.floor(Math.random() * (b.w - 2));
+      var sy = b.y + 1 + Math.floor(Math.random() * (b.h - 2));
+      var dir = Math.floor(Math.random() * 4);
       var dx = [1, -1, 0, 0][dir];
       var dy = [0, 0, 1, -1][dir];
-      var len = 2 + Math.floor(rng.random() * 4);
+      var len = 2 + Math.floor(Math.random() * 4);
       for (var step = 0; step < len; step++) {
         var nx = sx + dx * step;
         var ny = sy + dy * step;

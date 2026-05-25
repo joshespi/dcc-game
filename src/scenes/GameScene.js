@@ -147,7 +147,6 @@ var GameScene = new Phaser.Class({
     // ── Bopca merchant NPCs (one per safe room) ──────────────────────────────
     this._bopcas     = [];
     this._nearBopca  = null;
-    this._shopOpen   = false;
     for (var bsi = 0; bsi < this._safeRooms.length; bsi++) {
       var bsr = this._safeRooms[bsi];
       var bmx = (bsr.x + Math.floor(bsr.w / 2)) * 32 + 16;
@@ -264,7 +263,7 @@ var GameScene = new Phaser.Class({
     this.input.keyboard.on('keydown-R', function () {
       var result = scene.donut.activateHealSurge();
       if (result === false) {
-        scene.messages.push('HEALING SURGE RECHARGING. DONUT IS NOT A VENDING MACHINE.');
+        scene.messages.push(MessageSystem.surgeCooldown());
       } else if (result === 'no_mp') {
         scene.messages.push(MessageSystem.donutReaction('no_mp'));
       } else {
@@ -622,7 +621,7 @@ var GameScene = new Phaser.Class({
       if (d2 < 784) { // 28px pickup radius
         var xpAmt = orb._xp || 5;
         var lvlUp = scene.status.addXP(xpAmt);
-        if (lvlUp) scene._onLevelUp(lvlUp);
+        if (lvlUp) lvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
         orb.setActive(false).setVisible(false).destroy();
         _playPickup();
       }
@@ -1205,7 +1204,7 @@ var GameScene = new Phaser.Class({
     this.messages.push(MessageSystem.kill(enemy.typeName, enemy.xpValue));
     // Donut reacts to kills ~25% of the time
     if (Math.random() < 0.25) this.messages.push(MessageSystem.donutReaction('kill'));
-    if (lvlUp) this._onLevelUp(lvlUp);
+    if (lvlUp) lvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
 
     // Prune dead entries so the update forEach stays O(live enemies)
     this.enemies = this.enemies.filter(function (e) { return !e.isDead(); });
@@ -1318,6 +1317,8 @@ var GameScene = new Phaser.Class({
     var corpse = this._nearestCorpse;
     if (!corpse || corpse._looted) return false;
     corpse._looted = true;
+    var corpseX = corpse.sprite ? corpse.sprite.x : 0;
+    var corpseY = corpse.sprite ? corpse.sprite.y : 0;
     if (corpse.sprite && corpse.sprite.destroy) corpse.sprite.destroy();
     this._removeFromArray(this.corpses, corpse);
 
@@ -1333,7 +1334,7 @@ var GameScene = new Phaser.Class({
       var eq = (er === 'equipped') ? ' — EQUIPPED' : '';
       this.messages.push('LOOTED: ' + item.name.toUpperCase() + (det ? ' (' + det + ')' : '') + eq);
     }
-    this._floatText(corpse.sprite.x, corpse.sprite.y - 20,
+    this._floatText(corpseX, corpseY - 20,
       corpse.typeName + ' looted', '#88cc88', 11);
     return true;
   },
@@ -1519,7 +1520,7 @@ var GameScene = new Phaser.Class({
       var lvlUp2 = this.status.addXP(xpGain);
       this._floatText(cx, cy - 20, 'FORTUNE! +' + xpGain + ' XP', '#ffdd22', 13);
       this.messages.push('SCROLL OF FORTUNE CONSUMED. +' + xpGain + ' XP. THE DUNGEON ACKNOWLEDGES YOUR GREED.');
-      if (lvlUp2) this._onLevelUp(lvlUp2);
+      if (lvlUp2) { var _s2 = this; lvlUp2.forEach(function (lu) { _s2._onLevelUp(lu); }); }
       _playLevelUp();
     }
   },
@@ -1839,6 +1840,10 @@ var GameScene = new Phaser.Class({
     this.status.addViews(2000000);
     this.status.addFollowers(20000);
     this.status.addFavorites(5000);
+    this.status.kills++;
+    var ksu = this.status.addSkillXP(this.status.attackSkillName(), 25);
+    if (ksu) this._onSkillUp(ksu);
+    var bossLvlUp = this.status.addXP(enemy.xpValue);
 
     // Always drop a unique Hoarder item — instant pickup, legendary tier
     var hoarderPool = [
@@ -1870,6 +1875,7 @@ var GameScene = new Phaser.Class({
     this.time.delayedCall(800, function () {
       scene.messages.push(MessageSystem.donutReaction('kill'));
     });
+    if (bossLvlUp) bossLvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
     // Start creep wave — adjacent mobs infiltrate every 45s
     this._startCreepWaves();
   },
@@ -2087,12 +2093,10 @@ var GameScene = new Phaser.Class({
     var stock = this._generateShopStock();
     this.registry.set('shopData', { stock: stock, gold: this.status.gold });
     this.registry.set('shopOpen', true);
-    this._shopOpen = true;
   },
 
   _closeShop: function () {
     this.registry.set('shopOpen', false);
-    this._shopOpen = false;
   },
 
   _generateShopStock: function () {
@@ -2360,23 +2364,6 @@ function _playConsumable(type) {
   } catch (e) {}
 }
 
-function _playCraft() {
-  var ctx = _getGameAudioCtx();
-  if (!ctx) return;
-  try {
-    var t = ctx.currentTime;
-    [440, 554, 660].forEach(function (freq, i) {
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'square';
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(freq, t + i * 0.045);
-      gain.gain.setValueAtTime(0.09, t + i * 0.045);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.045 + 0.1);
-      osc.start(t + i * 0.045); osc.stop(t + i * 0.045 + 0.11);
-    });
-  } catch (e) {}
-}
 
 function _playBossSlam() {
   var ctx = _getGameAudioCtx();

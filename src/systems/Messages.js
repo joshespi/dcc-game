@@ -137,6 +137,10 @@ var MessageSystem = (function () {
     return 'POTION ON COOLDOWN. ' + sec + 'S REMAINING. BORANT ADVISES PATIENCE.';
   };
 
+  MessageSystem.surgeCooldown = function () {
+    return 'HEALING SURGE RECHARGING. DONUT IS NOT A VENDING MACHINE.';
+  };
+
   MessageSystem.shopBuy = function (itemName, cost) {
     var lines = [
       'TRANSACTION COMPLETE. TALLY WAVES GOODBYE WITHOUT MOVING ANY MUSCLES.',

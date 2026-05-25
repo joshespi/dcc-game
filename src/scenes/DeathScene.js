@@ -193,7 +193,7 @@ var DeathScene = new Phaser.Class({
         yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
       });
       scene.input.keyboard.once('keydown', function () { scene._restart(); });
-      scene.input.on('pointerdown', function () { scene._restart(); });
+      scene.input.once('pointerdown', function () { scene._restart(); });
     });
   },
 
