@@ -968,7 +968,8 @@ var GameScene = new Phaser.Class({
 
     var cx = scene.carl.x();
     var cy = scene.carl.y() - 80;
-    var spacing = 36;
+    // Cap total spread to 8 boxes at 36px — compress spacing for larger stacks
+    var spacing = boxes.length > 1 ? Math.min(36, (7 * 36) / (boxes.length - 1)) : 36;
     var startX = cx - ((boxes.length - 1) * spacing) / 2;
 
     scene.messages.push('OPENING ' + boxes.length + ' LOOT BOX' + (boxes.length > 1 ? 'ES' : '') + '. BRONZE FIRST. BORANT CORPORATION GIFT DELIVERY SERVICE.');
