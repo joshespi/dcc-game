@@ -138,18 +138,22 @@ var GameScene = new Phaser.Class({
     this._spawnEnemies(dungeon.rooms, this.currentFloor);
 
     // ── Neighborhood boss ────────────────────────────────────────────────────
-    if (this._bossRoom) {
+    // Skip spawn if already killed on this floor (save restored mid-floor).
+    var bossAlreadyKilled = this.status.bossKilledFloor === this.currentFloor;
+    if (this._bossRoom && !bossAlreadyKilled) {
       var br = this._bossRoom;
       var bcx = (br.x + Math.floor(br.w / 2)) * 32 + 16;
       var bcy = (br.y + Math.floor(br.h / 2)) * 32 + 16;
-      // Buffed crack camel as placeholder — boss will get own sprite/class later
       var bossEnemy = EnemyFactory.createBoss(this, bcx, bcy, this.currentFloor);
       this.physics.add.collider(bossEnemy.sprite, this.wallLayer);
       bossEnemy.onDeath(function (dead) { scene._onBossDeath(dead); });
       bossEnemy._throwCd    = 0;
-      bossEnemy._throwCdMs  = 3500;
+      bossEnemy._throwCdMs  = 2400;
       this.enemies.push(bossEnemy);
       this._bossEnemy = bossEnemy;
+    } else if (bossAlreadyKilled && this._bossRoom) {
+      // Door stays open if boss was already dead at save
+      this.wallLayer.putTileAt(DungeonGenerator.FLOOR, this._bossRoom.doorX, this._bossRoom.doorY);
     }
 
     // ── Loot boxes ──────────────────────────────────────────────────────────
@@ -350,15 +354,15 @@ var GameScene = new Phaser.Class({
     // Lore: Borant seals stairwells for ~30 dungeon hours after each floor opens.
     // Compressed to 25 real minutes for Floor 1 (target: ~20-30 min playtime).
     // Higher floors may differ — getFloorTimerMs() encapsulates the scaling.
-    this._stairsUnlocked   = false;
+    // Stairs are sealed until the neighborhood boss is dead.
+    // Persisted: status.bossKilledFloor === currentFloor means already killed.
+    this._stairsUnlocked   = (this.status.bossKilledFloor === this.currentFloor) || !this._bossRoom;
     this._safeRoomsClosed  = false;
     var floorMs  = _getFloorTimerMs(this.currentFloor);
     var elapsed  = Math.min(this._savedTimerElapsed, floorMs);
-    var remaining = floorMs - elapsed;
     var now = Date.now();
-    this._floorTimerStart = now - elapsed;     // virtual start in the past
-    this._stairUnlockAt   = now + remaining;
-    // Safe rooms close at 80% total elapsed
+    this._floorTimerStart = now - elapsed;
+    // Safe rooms still close at 80% total elapsed — applies pressure even after boss dies
     var closureMs     = Math.floor(floorMs * 0.80);
     var closureRemain = Math.max(0, closureMs - elapsed);
     this._safeRoomCloseAt = now + closureRemain;
@@ -371,15 +375,6 @@ var GameScene = new Phaser.Class({
         scene._currentSafeRoom = null;
         scene.registry.set('currentSafeRoom', null);
         scene.messages.push('BORANT CORPORATION: SAFE ZONE PROTOCOLS SUSPENDED. ALL SAFE ROOMS NOW CLOSED. YOU HAVE BEEN WARNED.');
-      });
-    }
-
-    if (remaining <= 0) {
-      this._stairsUnlocked = true;
-    } else {
-      this.time.delayedCall(remaining, function () {
-        scene._stairsUnlocked = true;
-        scene.messages.push(MessageSystem.stairsFound(scene.currentFloor));
       });
     }
 
@@ -784,32 +779,44 @@ var GameScene = new Phaser.Class({
     var tiles = this.dungeonData.tiles;
     var startX = this.dungeonData.startPos.x / 32;
     var startY = this.dungeonData.startPos.y / 32;
+    var safeRooms = this._safeRooms || [];
+    var bossRoom  = this._bossRoom;
+    var PAD = 2; // tiles of buffer around safe/boss rooms
+
+    function _inRoom(tx, ty, r, pad) {
+      pad = pad || 0;
+      return tx >= r.x - pad && tx < r.x + r.w + pad &&
+             ty >= r.y - pad && ty < r.y + r.h + pad;
+    }
+    function _inAnySafe(tx, ty) {
+      for (var ai = 0; ai < safeRooms.length; ai++) if (_inRoom(tx, ty, safeRooms[ai], PAD)) return true;
+      return false;
+    }
+
     for (var i = 0; i < rooms.length; i++) {
       if (Math.random() > 0.4) continue;
       var room = rooms[i];
       var blockCX = room.x + room.w / 2;
       var blockCY = room.y + room.h / 2;
       if (_dist2(blockCX, blockCY, startX, startY) < 64) continue;
-      // Find a floor tile near room center — spiral outward until we hit one
-      var placed = false;
       var cx = Math.floor(blockCX), cy = Math.floor(blockCY);
-      outer: for (var rad = 0; rad <= 4; rad++) {
+      outer: for (var rad = 0; rad <= 6; rad++) {
         for (var dy = -rad; dy <= rad; dy++) {
           for (var dx = -rad; dx <= rad; dx++) {
             if (Math.abs(dx) !== rad && Math.abs(dy) !== rad) continue;
             var tx = cx + dx, ty = cy + dy;
             var tileVal = tiles[ty] && tiles[ty][tx];
-            if (tileVal === DungeonGenerator.FLOOR || tileVal === DungeonGenerator.START) {
-              var bx = tx * 32 + 16, by2 = ty * 32 + 16;
-              var box = scene.physics.add.staticImage(bx, by2, 'loot_box');
-              box.setDepth(5).setTint(0xffdd88);
-              box._opened = false;
-              box._tier = 'bronze';
-              box._contents = scene._lootTableForTier('bronze');
-              scene.lootBoxes.push(box);
-              placed = true;
-              break outer;
-            }
+            if (tileVal !== DungeonGenerator.FLOOR && tileVal !== DungeonGenerator.START) continue;
+            if (_inAnySafe(tx, ty)) continue;
+            if (bossRoom && _inRoom(tx, ty, bossRoom, PAD)) continue;
+            var bx = tx * 32 + 16, by2 = ty * 32 + 16;
+            var box = scene.physics.add.staticImage(bx, by2, 'loot_box');
+            box.setDepth(5).setTint(0xffdd88);
+            box._opened = false;
+            box._tier = 'bronze';
+            box._contents = scene._lootTableForTier('bronze');
+            scene.lootBoxes.push(box);
+            break outer;
           }
         }
       }
@@ -939,6 +946,7 @@ var GameScene = new Phaser.Class({
   },
 
   _checkLootInteract: function () {
+    var scene = this;
     var box = this._nearestLootBox;
     var hasClaimed = this._claimedBoxes.length > 0;
 
@@ -967,7 +975,6 @@ var GameScene = new Phaser.Class({
     // Outside safe room: collect box into inventory, sprite disappears
     if (!this.isInSafeRoom()) {
       if (!box) return false;
-      var scene = this;
       box._claimed = true;
       box._opened  = true;
       this._removeFromArray(this.lootBoxes, box);
@@ -986,17 +993,18 @@ var GameScene = new Phaser.Class({
 
     if (this._lootSequenceRunning) return true;
 
-    // Safe room: gather visible boxes + rebuild sprites for claimed boxes
+    // Safe room: only open the nearest box (if any) + all claimed pack boxes.
+    // Don't sweep the whole map — boxes elsewhere must be picked up first.
     var toOpen = [];
-    for (var i = 0; i < this.lootBoxes.length; i++) {
-      if (!this.lootBoxes[i]._opened && !this.lootBoxes[i]._isDrop) toOpen.push(this.lootBoxes[i]);
+    if (box && !box._opened && !box._isDrop) {
+      toOpen.push(box);
     }
     // Claimed boxes: materialize a temporary sprite near Carl so the sequence can animate them
     for (var ci = 0; ci < this._claimedBoxes.length; ci++) {
       var cd = this._claimedBoxes[ci];
       var tx = this.carl.x() + (ci - Math.floor(this._claimedBoxes.length / 2)) * 24;
       var ty = this.carl.y() + 28;
-      var ghost = this.add.image(tx, ty, 'loot_box').setDepth(5).setAlpha(0);
+      var ghost = this.add.image(tx, ty, 'loot_box').setDepth(5);
       ghost.setTint(BOX_TIER_TINT[cd.tier] || 0xcc7733);
       ghost._opened   = false;
       ghost._tier     = cd.tier;
@@ -1699,12 +1707,10 @@ var GameScene = new Phaser.Class({
     var INTERACT_R2 = 2304; // 48px radius
     var nearest = null;
     var nearDist2 = Infinity;
-    var unopenedCount = 0;
 
     for (var i = 0; i < this.lootBoxes.length; i++) {
       var box = this.lootBoxes[i];
       if (box._opened) continue;
-      if (!box._isDrop) unopenedCount++;
       var dx = box.x - cx, dy = box.y - cy;
       var d2 = dx * dx + dy * dy;
       if (d2 < INTERACT_R2 && d2 < nearDist2) {
@@ -1737,8 +1743,8 @@ var GameScene = new Phaser.Class({
       if (nearest._isDrop) {
         label = '[E] pick up';
       } else if (inSafe) {
-        var totalBoxes = unopenedCount + packedCount;
-        label = totalBoxes > 1 ? '[E] open all ' + totalBoxes + ' boxes' : '[E] open box';
+        var totalBoxes = 1 + packedCount; // this box + claimed pack
+        label = totalBoxes > 1 ? '[E] open ' + totalBoxes + ' boxes' : '[E] open box';
       } else {
         label = packedCount > 0
           ? '[E] collect (' + packedCount + ' in pack)'
@@ -1814,20 +1820,13 @@ var GameScene = new Phaser.Class({
       this.time.delayedCall(3500, function () {
         if (scene._currentSafeRoom === entered) scene.registry.set('showTV', entered.name);
       });
-      // First-ever safe room: Silver Adventurer Box reward
+      // First-ever safe room: Silver Adventurer Box reward → straight to pack
       if (!this.status.firstSafeRoomDone) {
         this.status.firstSafeRoomDone = true;
         this.time.delayedCall(1200, function () {
-          scene.messages.push('ACHIEVEMENT: "SANCTUARY." FIRST SAFE ROOM DISCOVERED. SILVER ADVENTURER\'S BOX AWARDED.');
+          scene.messages.push('ACHIEVEMENT: "SANCTUARY." FIRST SAFE ROOM DISCOVERED. SILVER ADVENTURER\'S BOX ADDED TO PACK.');
           scene._floatText(scene.carl.x(), scene.carl.y() - 36, 'SILVER BOX!', '#aacccc', 14);
-          var sx = scene.carl.x() + 20;
-          var sy = scene.carl.y() - 10;
-          var sbox = scene.physics.add.staticImage(sx, sy, 'loot_box');
-          sbox.setDepth(5).setTint(BOX_TIER_TINT.silver);
-          sbox._opened = false;
-          sbox._tier   = 'silver';
-          sbox._contents = scene._lootTableForTier('silver');
-          scene.lootBoxes.push(sbox);
+          scene._claimedBoxes.push({ tier: 'silver', _contents: scene._lootTableForTier('silver') });
         });
       }
       // Donut reacts
@@ -1855,20 +1854,14 @@ var GameScene = new Phaser.Class({
   },
 
   getStairsStatus: function () {
-    if (this._stairsUnlocked) return { unlocked: true, secsLeft: 0 };
-    var secsLeft = Math.max(0, Math.ceil((this._stairUnlockAt - Date.now()) / 1000));
-    return { unlocked: false, secsLeft: secsLeft };
+    return { unlocked: this._stairsUnlocked, bossAlive: !!(this._bossEnemy && !this._bossEnemy.isDead()) };
   },
 
   getFloorTimerStatus: function () {
-    var total = this._stairUnlockAt - this._floorTimerStart;
-    var remaining = Math.max(0, this._stairUnlockAt - Date.now());
-    var elapsed   = total - remaining;
     return {
       unlocked:  this._stairsUnlocked,
-      secsLeft:  Math.ceil(remaining / 1000),
-      secsTotal: Math.ceil(total    / 1000),
-      fraction:  elapsed / total,
+      bossAlive: !!(this._bossEnemy && !this._bossEnemy.isDead()),
+      hasBoss:   !!this._bossRoom,
     };
   },
 
@@ -1991,10 +1984,13 @@ var GameScene = new Phaser.Class({
     var scene = this;
     // Stop taunt timer
     if (this._bossLoopEvent) { this._bossLoopEvent.remove(false); this._bossLoopEvent = null; }
-    // Unseal door
+    // Unseal door + unlock stairs
     if (this._bossRoom) {
       this.wallLayer.putTileAt(DungeonGenerator.FLOOR, this._bossRoom.doorX, this._bossRoom.doorY);
     }
+    this._stairsUnlocked = true;
+    this.status.bossKilledFloor = this.currentFloor;
+    this.messages.push('BORANT CORPORATION: NEIGHBORHOOD STAIRWELL UNSEALED. EXIT NOW LIVE.');
     this.cameras.main.flash(400, 255, 220, 50);
     this.cameras.main.shake(200, 0.008);
     this.status.addViews(2000000);
@@ -2065,8 +2061,8 @@ var GameScene = new Phaser.Class({
 
   _bossGroundSlam: function (boss) {
     var scene = this;
-    var SLAM_R = boss._phase === 2 ? 96 : 72; // px radius
-    var SLAM_DMG = boss._phase === 2 ? 28 : 18;
+    var SLAM_R = boss._phase === 2 ? 110 : 84; // px radius
+    var SLAM_DMG = boss._phase === 2 ? 36 : 24;
     var bx = boss.sprite.x, by = boss.sprite.y;
 
     // Telegraph: red circle that pulses for 700ms

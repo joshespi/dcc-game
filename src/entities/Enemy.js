@@ -925,13 +925,13 @@ var EnemyFactory = (function () {
     var bossDef = {
       name: 'The Hoarder',
       texture: 'hoarder',
-      hp:     Math.round(220 * scale),
-      damage: Math.round(18  * scale),
-      speed:  52,
-      xp:     Math.round(180 * scale),
-      aggroRange:  300,
+      hp:     Math.round(420 * scale),
+      damage: Math.round(24  * scale),
+      speed:  62,
+      xp:     Math.round(240 * scale),
+      aggroRange:  320,
       attackRange: 42,
-      attackCd:    1100,
+      attackCd:    900,
       bodyW: 32, bodyH: 32,
     };
     var boss = new Enemy(scene, x, y, bossDef);
@@ -939,10 +939,10 @@ var EnemyFactory = (function () {
     boss.sprite.body.setSize(32, 32);
     boss.sprite.body.setOffset(8, 12);
     boss.isBoss      = true;
-    boss._noWander   = true;  // stands still until aggroed
+    boss._noWander   = true;
     boss._phase      = 1;
-    boss._slamCd     = 0;    // ms timestamp when next slam is ready
-    boss._slamCdMs   = 4500; // slam every 4.5s
+    boss._slamCd     = 0;
+    boss._slamCdMs   = 3200;
     return boss;
   }
 

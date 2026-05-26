@@ -56,19 +56,17 @@ var IntroScene = new Phaser.Class({
 
     var lines = [
       { text: 'DUNGEON CRAWLER CARL',
-        size: 38, color: '#ffdd57', y: H * 0.17, delay: 0 },
+        size: 38, color: '#ffdd57', y: H * 0.15, delay: 0 },
       { text: '─────────────────────────────────────────',
-        size: 14, color: '#333355', y: H * 0.27, delay: 300 },
+        size: 14, color: '#333355', y: H * 0.24, delay: 300 },
       { text: 'The surface has collapsed.',
-        size: 18, color: '#ccbbff', y: H * 0.36, delay: 700 },
+        size: 18, color: '#ccbbff', y: H * 0.32, delay: 700 },
       { text: 'Forty-seven billion humans have been deposited\ninto the World Dungeon.',
-        size: 15, color: '#9999bb', y: H * 0.46, delay: 1400 },
+        size: 15, color: '#9999bb', y: H * 0.41, delay: 1400 },
       { text: 'You are Carl.  Your cat is Donut.\nShe is not pleased.',
-        size: 15, color: '#9999bb', y: H * 0.58, delay: 2400 },
+        size: 15, color: '#9999bb', y: H * 0.52, delay: 2400 },
       { text: 'BORANT CORPORATION THANKS YOU FOR YOUR PARTICIPATION.',
-        size: 11, color: '#443355', y: H * 0.70, delay: 3400 },
-      { text: '[ PRESS ANY KEY TO BEGIN ]',
-        size: 15, color: '#ffdd57', y: H * 0.82, delay: 4200 },
+        size: 11, color: '#443355', y: H * 0.62, delay: 3400 },
     ];
 
     lines.forEach(function (l) {
@@ -87,15 +85,52 @@ var IntroScene = new Phaser.Class({
 
     this.time.delayedCall(4200, function () {
       if (scene._started) return;
-      scene.input.keyboard.once('keydown', function () { scene._startGame(); });
-      scene.input.on('pointerdown', function () { scene._startGame(); });
+      scene._showButtons(W, H);
     });
   },
 
-  _startGame: function () {
+  _showButtons: function (W, H) {
+    var scene = this;
+    var saved = SaveSystem.load();
+
+    function makeBtn(label, sub, x, y, w, onClick) {
+      var h = 72;
+      var bg = scene.add.rectangle(x, y, w, h, 0x111122, 0.85)
+        .setStrokeStyle(2, 0xffdd57, 0.7).setInteractive({ useHandCursor: true });
+      var t = scene.add.text(x, y - 14, label, {
+        fontFamily: 'monospace', fontSize: '18px', color: '#ffdd57',
+      }).setOrigin(0.5);
+      var s = scene.add.text(x, y + 14, sub || '', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#9999bb',
+        align: 'center', lineSpacing: 4,
+      }).setOrigin(0.5);
+      bg.on('pointerover', function () { bg.setFillStyle(0x222244, 0.95); t.setColor('#ffffff'); });
+      bg.on('pointerout',  function () { bg.setFillStyle(0x111122, 0.85); t.setColor('#ffdd57'); });
+      bg.on('pointerdown', onClick);
+      [bg, t, s].forEach(function (o) { o.setAlpha(0); });
+      scene.tweens.add({ targets: [bg, t, s], alpha: 1, duration: 500 });
+      return { bg: bg, t: t, s: s };
+    }
+
+    var btnY = H * 0.80;
+    var btnW = 280;
+    if (saved) {
+      var subLine1 = 'CRAWLER #' + (saved.crawlerNumber || '?') +
+        '  |  LVL ' + (saved.level || 1);
+      var subLine2 = 'FLOOR ' + (saved.floor || 1) +
+        '  |  ' + (saved.kills || 0) + ' KILLS';
+      makeBtn('NEW GAME', 'wipe save, start fresh',    W / 2 - btnW / 2 - 16, btnY, btnW, function () { scene._startGame(true); });
+      makeBtn('RESUME',   subLine1 + '\n' + subLine2,  W / 2 + btnW / 2 + 16, btnY, btnW, function () { scene._startGame(false); });
+    } else {
+      makeBtn('NEW GAME', 'press to begin', W / 2, btnY, btnW, function () { scene._startGame(true); });
+    }
+  },
+
+  _startGame: function (freshStart) {
     if (this._started) return;
     this._started = true;
     var scene = this;
+    if (freshStart) SaveSystem.clear();
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.time.delayedCall(420, function () {
       scene.scene.start('GameScene', { floor: 1 });

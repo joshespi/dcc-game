@@ -40,6 +40,7 @@ var CrawlerStatus = (function () {
     // INT*10 gives a workable pool — Donut's Magic Missile costs 10 MP/cast at level 1.
     this.mp    = this.stats.int * 10;
     this.maxMp = this.stats.int * 10;
+    this.bossKilledFloor = 0;
   }
 
   CrawlerStatus.prototype.addXP = function (amount) {
@@ -389,6 +390,7 @@ var CrawlerStatus = (function () {
       gold:      this.gold,
       skills:    Object.assign({}, this.skills),
       skillXp:   Object.assign({}, this.skillXp),
+      bossKilledFloor: this.bossKilledFloor || 0,
     };
   };
 
@@ -420,6 +422,7 @@ var CrawlerStatus = (function () {
     s.gold      = data.gold      || 0;
     s.skills  = Object.assign({ unarmed: 3, melee: 1, endurance: 2, dodge: 1 }, data.skills  || {});
     s.skillXp = Object.assign({ unarmed: 0, melee: 0, endurance: 0, dodge: 0 }, data.skillXp || {});
+    s.bossKilledFloor = data.bossKilledFloor || 0;
     s.equippedWeapon = data.equippedWeaponIdx != null ? s.inventory[data.equippedWeaponIdx] : null;
     s.equippedArmor  = data.equippedArmorIdx  != null ? s.inventory[data.equippedArmorIdx]  : null;
     s.hotlist = (data.hotlistIndices || []).map(function (idx) {

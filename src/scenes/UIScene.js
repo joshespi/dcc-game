@@ -1251,7 +1251,6 @@ var UIScene = new Phaser.Class({
           if (this._stairsLastStr !== stStr) {
             this._stairsLastStr = stStr;
             this._stairsText.setText(stStr).setColor('#44ffaa');
-            // Pulse green when exit opens
             this.tweens.killTweensOf(this._stairsText);
             this.tweens.add({
               targets: this._stairsText, alpha: 0.4, duration: 600,
@@ -1260,12 +1259,10 @@ var UIScene = new Phaser.Class({
             });
           }
         } else {
-          stStr = 'FLOOR: ' + _fmtMMSS(ft.secsLeft);
-          // Color shifts red as time runs low
-          var col = ft.secsLeft > 300 ? '#886644' : ft.secsLeft > 60 ? '#cc7722' : '#ff4422';
+          stStr = ft.hasBoss ? 'BOSS: ALIVE' : 'EXIT SEALED';
           if (this._stairsLastStr !== stStr) {
             this._stairsLastStr = stStr;
-            this._stairsText.setText(stStr).setColor(col);
+            this._stairsText.setText(stStr).setColor('#cc7722');
           }
         }
       }

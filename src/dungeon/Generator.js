@@ -134,13 +134,20 @@ var DungeonGenerator = (function () {
     // One per floor. Mid-distance from start (not too close, not the stairs block).
     // 9×9 chamber carved off an alley, connected via single 1-tile doorway.
     var bossRoom = null;
-    var bossRoomCandidates = blockBounds.slice().sort(function (a, b) {
+    // Exclude the stairs block from boss candidates so they don't share a room.
+    var bossRoomCandidates = blockBounds.filter(function (b) {
+      if (!stairsTile) return true;
+      return !(stairsTile.x >= b.x && stairsTile.x < b.x + b.w &&
+               stairsTile.y >= b.y && stairsTile.y < b.y + b.h);
+    }).sort(function (a, b) {
       var aDist = Math.pow(a.x + a.w/2 - startX, 2) + Math.pow(a.y + a.h/2 - startY, 2);
       var bDist = Math.pow(b.x + b.w/2 - startX, 2) + Math.pow(b.y + b.h/2 - startY, 2);
       return aDist - bDist;
     });
-    // Pick the block at ~60% of the way through (past midpoint, before stairs)
-    var bossIdx = Math.floor(bossRoomCandidates.length * 0.60);
+    // Pick a random block in the back half of remaining candidates (40%-95%).
+    var bossMinIdx = Math.floor(bossRoomCandidates.length * 0.40);
+    var bossMaxIdx = Math.max(bossMinIdx, bossRoomCandidates.length - 1);
+    var bossIdx = bossMinIdx + Math.floor(Math.random() * (bossMaxIdx - bossMinIdx + 1));
     var bossBlock = bossRoomCandidates[bossIdx];
     if (bossBlock) {
       var brw = 9, brh = 9;
