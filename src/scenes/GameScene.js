@@ -621,9 +621,13 @@ var GameScene = new Phaser.Class({
         if (enemy.isDead()) return;
         if (enemy.overlapsRect(mr)) {
           var dmg = m.damage || scene.status.getSpellPower();
-          enemy.takeDamage(dmg);
-          scene._floatText(enemy.sprite.x + 18, enemy.sprite.y - 28, String(dmg), '#aaddff', 16);
-          if (enemy.typeName === 'Rat') scene._aggroRatPack(enemy);
+          if (enemy.typeName === 'Trog Pygmy') {
+            scene._trogPygmyMissileExplode(enemy, dmg);
+          } else {
+            enemy.takeDamage(dmg);
+            scene._floatText(enemy.sprite.x + 18, enemy.sprite.y - 28, String(dmg), '#aaddff', 16);
+            if (enemy.typeName === 'Rat') scene._aggroRatPack(enemy);
+          }
           m.setActive(false).setVisible(false).destroy();
           _playPickup();
         }
@@ -891,6 +895,7 @@ var GameScene = new Phaser.Class({
     'Crack Camel': [{ name: 'Camel Hide', quality: 'uncommon' }, { name: 'Camel Bone', quality: 'common' }],
     'Skeleton':    [{ name: 'Bone Shard', quality: 'common' }, { name: 'Skull Fragment', quality: 'common' }],
     'Rot Sticker': [{ name: 'Rot Sticker Carapace', quality: 'uncommon' }, { name: 'Rot Sticker Hemolymph', quality: 'uncommon' }],
+    'Trog Pygmy':  [{ name: 'Trog Scale', quality: 'common' }, { name: 'Trog Venom Sac', quality: 'uncommon' }],
   },
 
   _craftingDropForEnemy: function (typeName) {
@@ -1164,6 +1169,42 @@ var GameScene = new Phaser.Class({
       var dx = e.sprite.x - cx, dy = e.sprite.y - cy;
       return dx * dx + dy * dy <= r2;
     });
+  },
+
+  _trogPygmyMissileExplode: function (trog, missileDmg) {
+    var scene = this;
+    var bx = trog.sprite.x, by = trog.sprite.y;
+    var RADIUS = 72;
+
+    // Kill the pygmy first
+    trog.takeDamage(9999);
+
+    // Green toxic burst
+    var g = this.add.graphics().setDepth(20);
+    g.fillStyle(0x44dd22, 0.65);
+    g.fillCircle(bx, by, RADIUS);
+    this.tweens.add({ targets: g, alpha: 0, scaleX: 1.7, scaleY: 1.7,
+      duration: 380, onComplete: function () { g.destroy(); } });
+    this.cameras.main.shake(180, 0.01);
+
+    // Chain toxic damage to nearby enemies
+    var aoeDmg = Math.max(4, Math.floor(missileDmg * 0.55));
+    var aoeHit = 0;
+    this.enemies.forEach(function (e) {
+      if (e.isDead()) return;
+      var dx = e.sprite.x - bx, dy = e.sprite.y - by;
+      if (dx * dx + dy * dy < RADIUS * RADIUS) {
+        e.takeDamage(aoeDmg);
+        scene._floatText(e.sprite.x, e.sprite.y - 20, String(aoeDmg), '#55ff22', 13);
+        aoeHit++;
+      }
+    });
+    this._floatText(bx, by - 32, 'BOOM!', '#55ff22', 14);
+    if (aoeHit > 0) {
+      this.messages.push('TROG PYGMY DETONATES ON MAGIC IMPACT! TOXIC BLAST HITS ' + aoeHit + ' TARGET' + (aoeHit > 1 ? 'S' : '') + ' FOR ' + aoeDmg + ' EACH.');
+    } else {
+      this.messages.push('MAGIC MISSILE DETONATES THE TROG PYGMY. WHAT A MESS.');
+    }
   },
 
   _aggroRatPack: function (hitRat) {

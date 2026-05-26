@@ -253,6 +253,20 @@ var EnemyFactory = (function () {
       aggroRange: 200, attackRange: 24,
       bodyW: 16, bodyH: 12,
     },
+    trog_pygmy: {
+      name: 'Trog Pygmy', texture: 'trog_pygmy', hp: 15, damage: 5,
+      speed: 130, xp: 12,
+      aggroRange: 190, attackRange: 26, attackCd: 1000,
+      bodyW: 16, bodyH: 18,
+      // venomous bite — 35% poison on hit
+      onHitEffect: function (status) {
+        if (Math.random() < 0.35) {
+          status.applyDebuff(DEBUFF_POISON, 6000, 2, 1500);
+          return DEBUFF_POISON;
+        }
+        return null;
+      },
+    },
   };
 
   // ── Fairy overrides melee attack with ranged ───────────────────────────
@@ -698,6 +712,7 @@ var EnemyFactory = (function () {
       xp:     Math.round(def.xp    * scale),
     });
 
+    if (type === 'trog_pygmy')   return new Enemy(scene, x, y, scaledDef);
     if (type === 'fairy')        return new FairyEnemy(scene, x, y, scaledDef);
     if (type === 'rot_sticker')  return new RotStickerEnemy(scene, x, y, scaledDef);
     if (type === 'goblin')       return new GoblinEnemy(scene, x, y, scaledDef);
@@ -737,7 +752,7 @@ var EnemyFactory = (function () {
 
   // Types available per floor
   function typesForFloor(floorNum) {
-    if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker'];
+    if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_pygmy'];
     // Floor 2: skeletons introduced, crack camels gone
     if (floorNum === 2) return ['skeleton', 'goblin', 'rat', 'fairy', 'skeleton', 'danger_dingo', 'brindle_grub']; // skeleton/danger_dingo weighted
     return ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];

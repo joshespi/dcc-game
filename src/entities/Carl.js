@@ -118,12 +118,14 @@ var Carl = (function () {
       ease: 'Linear',
     });
 
-    // Build hitbox rect for this swing
-    this._swingBox = new Phaser.Geom.Rectangle(
-      sx - 20 + (this.facing === 'right' ? 4 : this.facing === 'left' ? -4 : 0),
-      sy - 20 + (this.facing === 'down'  ? 4 : this.facing === 'up'   ? -4 : 0),
-      40, 40
-    );
+    // Hitbox is centered on Carl's body with a bias toward the facing direction.
+    // Kept separate from sx/sy (the slash visual) so enemies directly on top of Carl
+    // are always within range — they're the danger zone, not an edge case.
+    var hw = isPunch ? 48 : 54, hh = isPunch ? 48 : 54;
+    var hbias = isPunch ? 12 : 14;
+    var hx = this.sprite.x + (this.facing === 'right' ? hbias : this.facing === 'left' ? -hbias : 0);
+    var hy = this.sprite.y + (this.facing === 'down'  ? hbias : this.facing === 'up'   ? -hbias : 0);
+    this._swingBox = new Phaser.Geom.Rectangle(hx - hw / 2, hy - hh / 2, hw, hh);
 
     // Kick does 1.3x damage; punch is 1x but faster (same ATTACK_CD for now)
     var dmg = Math.floor(this.status.getMeleeDamage() * (isPunch ? 1.0 : 1.3));

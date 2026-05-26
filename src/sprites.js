@@ -1195,6 +1195,44 @@ var SpriteGen = (function () {
     return c;
   }
 
+  function genTrogPygmy() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var BDY = '#4a7028', DRK = '#2c4a14', LIT = '#6a9038', CLO = '#6a4a18', WOD = '#7a5820';
+    // Tail — curves behind lower body
+    ctx.strokeStyle = DRK; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(19, 22); ctx.quadraticCurveTo(27, 25, 28, 31); ctx.stroke();
+    // Legs
+    rect(ctx, 12, 22, 4, 7, DRK); rect(ctx, 17, 22, 4, 7, DRK);
+    // Splayed feet
+    rect(ctx, 10, 28, 6, 3, BDY); rect(ctx, 17, 28, 6, 3, BDY);
+    // Body
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 18, 6, 5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(15, 17, 4, 3, 0, 0, Math.PI*2); ctx.fill();
+    // Scale dots
+    circle(ctx, 14, 17, 1, LIT); circle(ctx, 18, 17, 1, LIT); circle(ctx, 16, 21, 1, LIT);
+    // Loincloth
+    rect(ctx, 10, 21, 12, 3, CLO); rect(ctx, 12, 24, 8, 2, '#3a2808');
+    // Left arm — raised with club
+    rect(ctx, 6, 15, 6, 3, DRK);
+    // Club: shaft + knob
+    rect(ctx, 3, 9,  3, 8, WOD); rect(ctx, 1, 8, 7, 3, '#5a3808');
+    // Right arm — dangling
+    rect(ctx, 21, 17, 5, 3, DRK); rect(ctx, 25, 19, 3, 4, BDY);
+    // Neck
+    rect(ctx, 14, 13, 5, 5, BDY);
+    // Head
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 10, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(16, 9, 5, 4, 0, 0, Math.PI*2); ctx.fill();
+    // Snout
+    ctx.fillStyle = DRK; ctx.beginPath(); ctx.ellipse(16, 14, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 14, 4, 2, 0, 0, Math.PI*2); ctx.fill();
+    // Slit eyes
+    rect(ctx, 11, 7, 4, 2, '#ccbb00'); rect(ctx, 18, 7, 4, 2, '#ccbb00');
+    rect(ctx, 12, 7, 2, 2, '#000');    rect(ctx, 19, 7, 2, 2, '#000');
+    outline(ctx, '#102008', T, T);
+    return c;
+  }
+
   // ── REGISTER ALL ─────────────────────────────────────────────────────────
 
   function init(scene) {
@@ -1226,6 +1264,7 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('guildmaster',  genGuildmaster());
     scene.textures.addCanvas('hoarder',      genHoarder());
     scene.textures.addCanvas('rot_sticker',  genRotSticker());
+    scene.textures.addCanvas('trog_pygmy',   genTrogPygmy());
     scene.textures.addCanvas('brindle_grub', genBrindleGrub());
     scene.textures.addCanvas('danger_dingo', genDangerDingo());
     scene.textures.addCanvas('bopca',        genBopca());
