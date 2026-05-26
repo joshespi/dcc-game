@@ -1,6 +1,7 @@
-var GAME_VERSION = '20260525-16';
+var GAME_VERSION = '20260525-19';
 [
   'src/sprites.js',
+  'src/systems/Audio.js',
   'src/systems/SaveSystem.js',
   'src/systems/CrawlerStatus.js',
   'src/systems/Messages.js',

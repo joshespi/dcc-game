@@ -185,18 +185,8 @@ var Donut = (function () {
     this.glow.destroy();
   };
 
-  var _audioCtx = null;
-  function _getCtx() {
-    if (!_audioCtx) {
-      try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch (e) {}
-    }
-    if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
-    return _audioCtx;
-  }
-
   function _playNote(scene, type) {
-    var ctx = _getCtx();
+    var ctx = GameAudio.getCtx();
     if (!ctx) return;
     try {
       var osc = ctx.createOscillator();

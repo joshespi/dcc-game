@@ -1233,6 +1233,179 @@ var SpriteGen = (function () {
     return c;
   }
 
+  function genTrogBasher() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var BDY = '#3a5a20', DRK = '#1e3610', LIT = '#5a7a30', MUD = '#5a4020', WOD = '#6a4010';
+    // Thick tail
+    ctx.strokeStyle = DRK; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(20, 24); ctx.quadraticCurveTo(28, 27, 29, 31); ctx.stroke();
+    // Beefy legs
+    rect(ctx, 10, 21, 6, 9, DRK); rect(ctx, 17, 21, 6, 9, DRK);
+    rect(ctx, 9, 28, 7, 3, BDY);  rect(ctx, 17, 28, 7, 3, BDY);
+    // Wide body
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 17, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(15, 16, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // Scale rows
+    circle(ctx, 12, 14, 2, LIT); circle(ctx, 17, 14, 2, LIT); circle(ctx, 20, 18, 2, LIT);
+    circle(ctx, 13, 19, 2, LIT); circle(ctx, 19, 12, 2, LIT);
+    // Arms — thick
+    rect(ctx, 4,  15, 7, 4, DRK); // left arm
+    rect(ctx, 22, 15, 7, 4, DRK); // right arm
+    // Big club — left hand
+    rect(ctx, 1,  5, 4, 12, WOD);
+    rect(ctx, 0,  4, 6,  5, '#4a2808'); // knob
+    // Right fist
+    rect(ctx, 29, 18, 4, 5, BDY);
+    // Neck + big head
+    rect(ctx, 13, 11, 7, 6, BDY);
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 8, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(16, 7, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // Low brow ridge
+    rect(ctx, 9, 5, 15, 3, DRK);
+    // Small eyes deep under brow — yellow
+    rect(ctx, 11, 6, 3, 2, '#aaaa00'); rect(ctx, 19, 6, 3, 2, '#aaaa00');
+    rect(ctx, 12, 6, 2, 2, '#000');    rect(ctx, 20, 6, 2, 2, '#000');
+    // Wide snout / jaw
+    ctx.fillStyle = DRK; ctx.beginPath(); ctx.ellipse(16, 13, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 13, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    outline(ctx, '#0c1a04', T, T);
+    return c;
+  }
+
+  function genTrogVirtuoso() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var BDY = '#5a6a18', DRK = '#2e3808', LIT = '#7a8a28', ACC = '#cc4488';
+    // Thin tail
+    ctx.strokeStyle = DRK; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(18, 23); ctx.quadraticCurveTo(25, 26, 26, 31); ctx.stroke();
+    // Legs
+    rect(ctx, 11, 22, 4, 8, DRK); rect(ctx, 17, 22, 4, 8, DRK);
+    rect(ctx, 9,  28, 6, 3, BDY); rect(ctx, 17, 28, 6, 3, BDY);
+    // Slender body
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 18, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(15, 17, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Arms down, no weapon
+    rect(ctx, 6, 17, 5, 3, DRK); rect(ctx, 22, 17, 5, 3, DRK);
+    rect(ctx, 5, 20, 3, 4, BDY); rect(ctx, 25, 20, 3, 4, BDY);
+    // Neck
+    rect(ctx, 14, 13, 5, 5, BDY);
+    // Head — slightly elongated snout
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 10, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(16, 9,  5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Long protruding snout
+    ctx.fillStyle = DRK; ctx.beginPath(); ctx.ellipse(16, 14, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 14, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
+    // Tongue extended out — pink/red forked
+    ctx.strokeStyle = ACC; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(16, 16); ctx.lineTo(16, 24); ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(16, 22); ctx.lineTo(13, 27); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16, 22); ctx.lineTo(19, 27); ctx.stroke();
+    // Piercing eyes — larger, brighter
+    rect(ctx, 10, 7, 4, 3, '#dddd00'); rect(ctx, 18, 7, 4, 3, '#dddd00');
+    rect(ctx, 11, 7, 2, 3, '#000');    rect(ctx, 19, 7, 2, 3, '#000');
+    outline(ctx, '#101404', T, T);
+    return c;
+  }
+
+  function genScatterer() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var BDY = '#6b4423', DRK = '#3d2210', LIT = '#8b6040', SEG = '#4a3018';
+    // Oval body — horizontal, cockroach-shaped
+    ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 18, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
+    // Segmented bands
+    rect(ctx, 8, 17, 16, 2, SEG); rect(ctx, 9, 20, 14, 2, SEG);
+    // Lighter thorax
+    ctx.fillStyle = LIT; ctx.beginPath(); ctx.ellipse(16, 14, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Head
+    ctx.fillStyle = DRK; ctx.beginPath(); ctx.ellipse(16, 9, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Antennae
+    ctx.strokeStyle = DRK; ctx.lineWidth = 1; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(14, 7); ctx.lineTo(9, 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18, 7); ctx.lineTo(23, 2); ctx.stroke();
+    // 6 legs — 3 per side
+    ctx.strokeStyle = DRK; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(8, 14); ctx.lineTo(2, 11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(7, 17); ctx.lineTo(1, 17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8, 21); ctx.lineTo(2, 25); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(24, 14); ctx.lineTo(30, 11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(25, 17); ctx.lineTo(31, 17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(24, 21); ctx.lineTo(30, 25); ctx.stroke();
+    // Eyes
+    circle(ctx, 14, 9, 1, '#dd4400'); circle(ctx, 18, 9, 1, '#dd4400');
+    outline(ctx, '#1a0800', T, T);
+    return c;
+  }
+
+  function genBadLlama() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var WHL = '#ddd8c0', DRK = '#9a9080', ORN = '#cc4400', BRN = '#887860';
+    // Legs — 4 stumpy posts
+    rect(ctx, 8,  22, 4, 9, BRN); rect(ctx, 14, 22, 4, 9, BRN);
+    rect(ctx, 18, 22, 4, 9, BRN); rect(ctx, 24, 22, 4, 9, BRN);
+    // Hooves
+    rect(ctx, 7, 29, 6, 3, DRK); rect(ctx, 13, 29, 6, 3, DRK);
+    rect(ctx, 17, 29, 6, 3, DRK); rect(ctx, 23, 29, 6, 3, DRK);
+    // Body — wide rectangle + rounded top
+    ctx.fillStyle = WHL; ctx.beginPath(); ctx.ellipse(17, 19, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
+    // Belly shading
+    ctx.fillStyle = DRK; ctx.beginPath(); ctx.ellipse(17, 22, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = WHL; ctx.beginPath(); ctx.ellipse(17, 21, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Long neck
+    rect(ctx, 13, 8, 6, 13, WHL); rect(ctx, 14, 8, 4, 12, '#eee8d0');
+    // Head — oval, horizontal snout
+    ctx.fillStyle = WHL; ctx.beginPath(); ctx.ellipse(16, 5, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // Ears
+    rect(ctx, 10, 1, 3, 5, WHL); rect(ctx, 20, 1, 3, 5, WHL);
+    rect(ctx, 11, 2, 2, 3, '#ffeecc'); rect(ctx, 21, 2, 2, 3, '#ffeecc');
+    // Snout / lip with lava glow hint
+    ctx.fillStyle = DRK; ctx.beginPath(); ctx.ellipse(16, 8, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ORN; ctx.beginPath(); ctx.ellipse(16, 8, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+    // Nostrils
+    circle(ctx, 14, 8, 1, '#661100'); circle(ctx, 18, 8, 1, '#661100');
+    // Eyes
+    circle(ctx, 12, 4, 1, '#222'); circle(ctx, 20, 4, 1, '#222');
+    outline(ctx, '#2a2010', T, T);
+    return c;
+  }
+
+  function genScatThug() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var GRY = '#888888', DRK = '#333333', MSK = '#111111', SKN = '#ccaa80', SPR = '#cccccc';
+    // Legs — bipedal
+    rect(ctx, 11, 21, 5, 9, DRK); rect(ctx, 17, 21, 5, 9, DRK);
+    // Feet
+    rect(ctx, 9, 28, 7, 3, '#222'); rect(ctx, 17, 28, 7, 3, '#222');
+    // Body — compact humanoid
+    ctx.fillStyle = GRY; ctx.beginPath(); ctx.ellipse(16, 17, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    // Arms — left up holding spear, right down
+    rect(ctx, 5, 13, 6, 4, GRY);  // left arm
+    rect(ctx, 22, 15, 6, 4, GRY); // right arm
+    // Spear — thin needle shaft
+    ctx.strokeStyle = SPR; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(5, 3); ctx.lineTo(7, 18); ctx.stroke();
+    // Spear tip
+    ctx.fillStyle = SPR; ctx.beginPath(); ctx.moveTo(3, 3); ctx.lineTo(7, 3); ctx.lineTo(6, 7); ctx.closePath(); ctx.fill();
+    // Neck
+    rect(ctx, 14, 11, 5, 6, SKN);
+    // Raccoon head — round
+    ctx.fillStyle = GRY; ctx.beginPath(); ctx.ellipse(16, 8, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    // Ears
+    circle(ctx, 10, 3, 3, GRY); circle(ctx, 22, 3, 3, GRY);
+    circle(ctx, 10, 3, 2, DRK); circle(ctx, 22, 2, 2, DRK);
+    // Face mask — raccoon bandit stripe across eyes
+    rect(ctx, 9, 6, 14, 4, MSK);
+    // Eyes — glinting inside mask
+    circle(ctx, 13, 7, 2, '#dd8800'); circle(ctx, 19, 7, 2, '#dd8800');
+    circle(ctx, 13, 7, 1, '#000');    circle(ctx, 19, 7, 1, '#000');
+    // Snout
+    ctx.fillStyle = SKN; ctx.beginPath(); ctx.ellipse(16, 12, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Nose
+    circle(ctx, 16, 12, 2, '#554433');
+    outline(ctx, '#111111', T, T);
+    return c;
+  }
+
   // ── REGISTER ALL ─────────────────────────────────────────────────────────
 
   function init(scene) {
@@ -1264,7 +1437,12 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('guildmaster',  genGuildmaster());
     scene.textures.addCanvas('hoarder',      genHoarder());
     scene.textures.addCanvas('rot_sticker',  genRotSticker());
-    scene.textures.addCanvas('trog_pygmy',   genTrogPygmy());
+    scene.textures.addCanvas('trog_pygmy',     genTrogPygmy());
+    scene.textures.addCanvas('trog_basher',    genTrogBasher());
+    scene.textures.addCanvas('trog_virtuoso',  genTrogVirtuoso());
+    scene.textures.addCanvas('scatterer',      genScatterer());
+    scene.textures.addCanvas('bad_llama',      genBadLlama());
+    scene.textures.addCanvas('scat_thug',      genScatThug());
     scene.textures.addCanvas('brindle_grub', genBrindleGrub());
     scene.textures.addCanvas('danger_dingo', genDangerDingo());
     scene.textures.addCanvas('bopca',        genBopca());

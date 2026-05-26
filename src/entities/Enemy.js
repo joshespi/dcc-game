@@ -16,6 +16,9 @@ var EnemyFactory = (function () {
     this.aggroRange  = def.aggroRange  || 180;
     this.attackRange = def.attackRange || 28;
     this.attackCd    = def.attackCd    || 1000;
+    this._aggroR2    = this.aggroRange * this.aggroRange;
+    this._aggroHoldR2 = (this.aggroRange * 2.5) * (this.aggroRange * 2.5);
+    this._attackR2   = this.attackRange * this.attackRange;
     this.isMelee     = def.isMelee !== false;
     this.missileSpeed = def.missileSpeed || 0;
     // Optional: called with (carlStatus) when this enemy lands a melee hit
@@ -79,21 +82,20 @@ var EnemyFactory = (function () {
 
     var dx   = targetX - this.sprite.x;
     var dy   = targetY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    var d2   = dx * dx + dy * dy;
 
-    if (dist < this.aggroRange && !this._aggroed) {
+    if (d2 < this._aggroR2 && !this._aggroed) {
       this._tryAggro();
     }
 
-    if (this._aggroed && dist < this.aggroRange * 2.5) {
-      // Chase
+    if (this._aggroed && d2 < this._aggroHoldR2) {
+      var dist = Math.sqrt(d2) || 1;
       var spd = (this._aggroBurstUntil && now < this._aggroBurstUntil)
         ? this.speed * 1.3
         : this.speed;
       this.sprite.setVelocity((dx / dist) * spd, (dy / dist) * spd);
 
-      // Attack
-      if (dist < this.attackRange && now - this._attackTimer > this.attackCd) {
+      if (d2 < this._attackR2 && now - this._attackTimer > this.attackCd) {
         this._attackTimer = now;
         this._doAttack(carlX, carlY, missileGroup);
       }
@@ -253,6 +255,23 @@ var EnemyFactory = (function () {
       aggroRange: 200, attackRange: 24,
       bodyW: 16, bodyH: 12,
     },
+    trog_basher: {
+      name: 'Trog Basher', texture: 'trog_basher', hp: 42, damage: 10,
+      speed: 55, xp: 22,
+      aggroRange: 170, attackRange: 34, attackCd: 1300,
+      bodyW: 22, bodyH: 22,
+    },
+    trog_virtuoso: {
+      name: 'Trog Virtuoso', texture: 'trog_virtuoso', hp: 18, damage: 6,
+      speed: 65, xp: 18,
+      aggroRange: 210, attackRange: 70, attackCd: 1600,
+      bodyW: 16, bodyH: 18,
+      // tongue inflicts guaranteed poison
+      onHitEffect: function (status) {
+        status.applyDebuff(DEBUFF_POISON, 7000, 2, 1400);
+        return DEBUFF_POISON;
+      },
+    },
     trog_pygmy: {
       name: 'Trog Pygmy', texture: 'trog_pygmy', hp: 15, damage: 5,
       speed: 130, xp: 12,
@@ -269,6 +288,28 @@ var EnemyFactory = (function () {
     },
   };
 
+  DEFS.scatterer = {
+    name: 'Scatterer', texture: 'scatterer', hp: 10, damage: 6,
+    speed: 155, xp: 7,
+    aggroRange: 140, attackRange: 22, attackCd: 750,
+    bodyW: 14, bodyH: 10,
+  };
+
+  DEFS.bad_llama = {
+    name: 'Bad Llama', texture: 'bad_llama', hp: 58, damage: 14,
+    speed: 42, xp: 30,
+    aggroRange: 200, attackRange: 175, attackCd: 2200,
+    isMelee: false, missileSpeed: 155,
+    bodyW: 24, bodyH: 18,
+  };
+
+  DEFS.scat_thug = {
+    name: 'Scat Thug', texture: 'scat_thug', hp: 28, damage: 9,
+    speed: 72, xp: 18,
+    aggroRange: 190, attackRange: 36, attackCd: 1200,
+    bodyW: 16, bodyH: 18,
+  };
+
   // ── Fairy overrides melee attack with ranged ───────────────────────────
 
   function FairyEnemy(scene, x, y, scaledDef) {
@@ -280,26 +321,32 @@ var EnemyFactory = (function () {
 
   FairyEnemy.prototype.setMissileGroup = function (g) { this._missileGroup = g; };
 
-  FairyEnemy.prototype._doAttack = function (carlX, carlY) {
-    if (!this._missileGroup) return;
-    var m = this._missileGroup.get(this.sprite.x, this.sprite.y, 'magic_missile');
-    if (!m) return;
+  function _fireEnemyMissile(enemy, carlX, carlY, opts) {
+    if (!enemy._missileGroup) return null;
+    var m = enemy._missileGroup.get(enemy.sprite.x, enemy.sprite.y, 'magic_missile');
+    if (!m) return null;
     m.setActive(true).setVisible(true).setDepth(12);
-    m.setTint(0xff88ff); // pink tint to distinguish from Donut missiles
-    m.body.reset(this.sprite.x, this.sprite.y);
-    m.damage = this.damage;
-    m.isEnemyProjectile = true;
+    m.setTint(opts.tint);
+    m.body.reset(enemy.sprite.x, enemy.sprite.y);
+    m.damage             = enemy.damage;
+    m.isEnemyProjectile  = true;
+    m.sourceName         = opts.sourceName;
+    m.applyDebuff        = opts.applyDebuff || null;
     m.setCircle(7);
-    var dx = carlX - this.sprite.x;
-    var dy = carlY - this.sprite.y;
+    var dx = carlX - enemy.sprite.x, dy = carlY - enemy.sprite.y;
     var d  = Math.sqrt(dx * dx + dy * dy) || 1;
-    var spd = this.missileSpeed;
+    var spd = enemy.missileSpeed;
     m.setVelocity((dx / d) * spd, (dy / d) * spd);
-    var scene = this.scene;
-    scene.time.delayedCall(1600, function () {
+    enemy.scene.time.delayedCall(opts.lifetimeMs, function () {
       if (m.active) m.setActive(false).setVisible(false).destroy();
     });
-    _playHitSound(0.08);
+    return m;
+  }
+
+  FairyEnemy.prototype._doAttack = function (carlX, carlY) {
+    if (_fireEnemyMissile(this, carlX, carlY, {
+      tint: 0xff88ff, sourceName: 'Fairy', lifetimeMs: 1600,
+    })) _playHitSound(0.08);
   };
 
   // ── Goblin — retreats after landing a hit ─────────────────────────────
@@ -334,8 +381,7 @@ var EnemyFactory = (function () {
     if (this._everHit) this._updateHpBar();
 
     var dx = carlX - this.sprite.x, dy = carlY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
+    if (dx * dx + dy * dy < this._aggroR2 && !this._aggroed) this._tryAggro();
     if (this._retreating) {
       if (now < this._retreatUntil) {
         this.sprite.setVelocity(this._retreatVx, this._retreatVy);
@@ -368,35 +414,29 @@ var EnemyFactory = (function () {
 
     var dx   = carlX - this.sprite.x;
     var dy   = carlY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
+    var d2   = dx * dx + dy * dy;
 
-    // Trigger charge when first aggroed and cooldown expired
     var wasAggroed = this._aggroed;
-    if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
+    if (d2 < this._aggroR2 && !this._aggroed) this._tryAggro();
 
-    if (!wasAggroed && this._aggroed) {
-      // Just aggroed — start charge
-      this._startCharge();
-    }
+    if (!wasAggroed && this._aggroed) this._startCharge();
 
     if (this._charging) {
       if (now < this._chargeUntil) {
-        // Charge at full bore toward Carl
-        if (dist > 1) {
+        if (d2 > 1) {
+          var dist = Math.sqrt(d2);
           this.sprite.setVelocity((dx / dist) * this.speed, (dy / dist) * this.speed);
         }
-        // Melee handled by GameScene overlap — nothing extra here
         return;
       }
-      // Charge ended
       this._charging  = false;
       this.speed      = this._baseSpeed;
       this.sprite.clearTint();
       this._chargeCooldown = now + this._chargeCdMs;
     }
 
-    // Re-charge every 5s while aggroed
-    if (this._aggroed && !this._charging && now >= this._chargeCooldown && dist < this.aggroRange * 1.5) {
+    var rechargeR2 = (this.aggroRange * 1.5) * (this.aggroRange * 1.5);
+    if (this._aggroed && !this._charging && now >= this._chargeCooldown && d2 < rechargeR2) {
       this._startCharge();
     }
 
@@ -504,15 +544,15 @@ var EnemyFactory = (function () {
 
     var dx = carlX - this.sprite.x;
     var dy = carlY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    var d2 = dx * dx + dy * dy;
 
-    if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
+    if (d2 < this._aggroR2 && !this._aggroed) this._tryAggro();
 
-    if (this._aggroed && dist < this.aggroRange * 2.5) {
+    if (this._aggroed && d2 < this._aggroHoldR2) {
       if (this._chittering) { this._chittering.stop(); this._chittering = null; }
+      var dist = Math.sqrt(d2) || 1;
       this.sprite.setVelocity((dx / dist) * this.speed, (dy / dist) * this.speed);
-      // Attach when close
-      if (dist < this.attackRange) {
+      if (d2 < this._attackR2) {
         this._attached = true;
         this._fuseTimer = now;
         this.sprite.setVelocity(0, 0);
@@ -553,6 +593,139 @@ var EnemyFactory = (function () {
     this._onKnockdown = fn;
   };
 
+  // ── Trog Virtuoso — tongue lash, guaranteed poison, retreats after strike ──
+
+  function TrogVirtuosoEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.trog_virtuoso);
+    this._retreating   = false;
+    this._retreatUntil = 0;
+    this._retreatVx    = 0;
+    this._retreatVy    = 0;
+  }
+  TrogVirtuosoEnemy.prototype = Object.create(Enemy.prototype);
+  TrogVirtuosoEnemy.prototype.constructor = TrogVirtuosoEnemy;
+
+  TrogVirtuosoEnemy.prototype._doAttack = function (carlX, carlY) {
+    var scene = this.scene;
+    var bx = this.sprite.x, by = this.sprite.y;
+
+    // Draw a tongue line toward Carl then fade
+    var g = scene.add.graphics().setDepth(18);
+    g.lineStyle(2, 0xdd2266, 1);
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(carlX, carlY); g.strokePath();
+    // Fork at the tip
+    var dx = carlX - bx, dy = carlY - by, d = Math.sqrt(dx*dx+dy*dy)||1;
+    var px = carlX - (dx/d)*6, py = carlY - (dy/d)*6;
+    var nx = -(dy/d)*5, ny = (dx/d)*5;
+    g.lineStyle(1, 0xdd2266, 1);
+    g.beginPath(); g.moveTo(px, py); g.lineTo(carlX+nx, carlY+ny); g.strokePath();
+    g.beginPath(); g.moveTo(px, py); g.lineTo(carlX-nx, carlY-ny); g.strokePath();
+    scene.tweens.add({ targets: g, alpha: 0, duration: 250, onComplete: function () { g.destroy(); } });
+
+    // Retreat away from Carl after striking
+    var rd = Math.sqrt(dx*dx+dy*dy)||1;
+    this._retreatVx    = -(dx/rd) * this.speed * 1.4;
+    this._retreatVy    = -(dy/rd) * this.speed * 1.4;
+    this._retreating   = true;
+    this._retreatUntil = Date.now() + 700;
+
+    _playHitSound(0.06);
+  };
+
+  TrogVirtuosoEnemy.prototype.update = function (carlX, carlY, delta, missileGroup) {
+    if (this._dead || !this.sprite.active) return;
+    var now = Date.now();
+    if (this._stunUntil && now < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
+    if (this._everHit) this._updateHpBar();
+
+    var dx = carlX - this.sprite.x, dy = carlY - this.sprite.y;
+    var d2 = dx * dx + dy * dy;
+    if (d2 < this._aggroR2 && !this._aggroed) this._tryAggro();
+
+    if (this._retreating) {
+      if (now < this._retreatUntil) {
+        this.sprite.setVelocity(this._retreatVx, this._retreatVy);
+        return;
+      }
+      this._retreating = false;
+    }
+
+    if (this._aggroed && d2 < this._aggroHoldR2) {
+      var minTongueR2 = (this.attackRange * 0.6) * (this.attackRange * 0.6);
+      if (d2 > minTongueR2) {
+        var dist = Math.sqrt(d2) || 1;
+        this.sprite.setVelocity((dx/dist) * this.speed, (dy/dist) * this.speed);
+      } else {
+        this.sprite.setVelocity(0, 0);
+      }
+      if (d2 < this._attackR2 && now - this._attackTimer > this.attackCd) {
+        this._attackTimer = now;
+        this._doAttack(carlX, carlY);
+      }
+    } else {
+      if (now - this._wanderTimer > 2000) {
+        this._wanderTimer = now;
+        var angle = Math.random() * Math.PI * 2;
+        this.sprite.setVelocity(Math.cos(angle)*this.speed*0.25, Math.sin(angle)*this.speed*0.25);
+      }
+    }
+  };
+
+  // ── Scatterer — cockroach swarm; aggro cascades to nearby siblings ────────
+
+  var _scattererAll = [];
+
+  function ScattererEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.scatterer);
+    _scattererAll.push(this);
+    var me = this;
+    this.onDeath(function () {
+      var i = _scattererAll.indexOf(me);
+      if (i !== -1) _scattererAll.splice(i, 1);
+    });
+  }
+  ScattererEnemy.prototype = Object.create(Enemy.prototype);
+  ScattererEnemy.prototype.constructor = ScattererEnemy;
+
+  function _resetScattererSwarm() { _scattererAll.length = 0; }
+
+  ScattererEnemy.prototype._tryAggro = function () {
+    Enemy.prototype._tryAggro.call(this);
+    var RANGE = 90;
+    var sx = this.sprite.x, sy = this.sprite.y;
+    var now = Date.now();
+    var me = this;
+    // Prune stale refs, then cascade aggro to nearby idle siblings
+    for (var i = _scattererAll.length - 1; i >= 0; i--) {
+      var s = _scattererAll[i];
+      if (s._dead || !s.sprite || !s.sprite.active) { _scattererAll.splice(i, 1); continue; }
+      if (s === me || s._aggroed) continue;
+      var dx = s.sprite.x - sx, dy = s.sprite.y - sy;
+      if (dx * dx + dy * dy < RANGE * RANGE) {
+        s._aggroed = true;
+        s._aggroBurstUntil = now + 400;
+        s._flashTint(0xff8800, 200);
+      }
+    }
+  };
+
+  // ── Bad Llama — ranged lava-ball, inflicts Septic on hit ─────────────────
+
+  function BadLlamaEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.bad_llama);
+    this._missileGroup = null;
+  }
+  BadLlamaEnemy.prototype = Object.create(Enemy.prototype);
+  BadLlamaEnemy.prototype.constructor = BadLlamaEnemy;
+
+  BadLlamaEnemy.prototype.setMissileGroup = function (g) { this._missileGroup = g; };
+
+  BadLlamaEnemy.prototype._doAttack = function (carlX, carlY) {
+    if (_fireEnemyMissile(this, carlX, carlY, {
+      tint: 0xff4400, sourceName: 'Bad Llama', lifetimeMs: 1800, applyDebuff: DEBUFF_SEPTIC,
+    })) _playHitSound(0.07);
+  };
+
   // ── Danger Dingo (Floor 2) — mastiff, charges, corpse paint, barks ──────
 
   DEFS.danger_dingo = {
@@ -590,11 +763,10 @@ var EnemyFactory = (function () {
     if (this._everHit) this._updateHpBar();
 
     var dx = carlX - this.sprite.x, dy = carlY - this.sprite.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
+    var d2 = dx * dx + dy * dy;
 
-    if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
+    if (d2 < this._aggroR2 && !this._aggroed) this._tryAggro();
 
-    // Bark when first aggroed, then occasionally
     if (this._aggroed && now > this._barkCd) {
       this._barkCd = now + 6000 + Math.random() * 4000;
       var bark = DINGO_BARKS[Math.floor(Math.random() * DINGO_BARKS.length)];
@@ -605,8 +777,8 @@ var EnemyFactory = (function () {
       if (this._onBark) this._onBark(bark);
     }
 
-    // Charge attack every 4s
-    if (this._aggroed && !this._charging && now >= this._chargeCd && dist < this.aggroRange * 1.4) {
+    var chargeR2 = (this.aggroRange * 1.4) * (this.aggroRange * 1.4);
+    if (this._aggroed && !this._charging && now >= this._chargeCd && d2 < chargeR2) {
       this._charging    = true;
       this._chargeUntil = now + 700;
       this.speed        = this._baseSpeed * 2.8;
@@ -615,7 +787,10 @@ var EnemyFactory = (function () {
 
     if (this._charging) {
       if (now < this._chargeUntil) {
-        if (dist > 1) this.sprite.setVelocity((dx / dist) * this.speed, (dy / dist) * this.speed);
+        if (d2 > 1) {
+          var dist = Math.sqrt(d2);
+          this.sprite.setVelocity((dx / dist) * this.speed, (dy / dist) * this.speed);
+        }
         return;
       }
       this._charging  = false;
@@ -649,16 +824,32 @@ var EnemyFactory = (function () {
   BrindleGrubEnemy.prototype.update = function (carlX, carlY, delta, missileGroup, corpses) {
     if (this._dead || !this.sprite.active) return;
 
-    var nearest = null, nearDist2 = Infinity;
-    if (corpses) {
-      for (var i = 0; i < corpses.length; i++) {
-        var corp = corpses[i];
-        if (!corp.sprite || !corp.sprite.active) continue;
-        var dx = corp.sprite.x - this.sprite.x;
-        var dy = corp.sprite.y - this.sprite.y;
-        var d2 = dx * dx + dy * dy;
-        if (d2 < nearDist2) { nearDist2 = d2; nearest = corp; }
+    var now = Date.now();
+    var nearest = this._cachedTarget;
+    var nearDist2 = Infinity;
+    var cachedValid = nearest && nearest.sprite && nearest.sprite.active && !nearest._consumed;
+    if (cachedValid) {
+      var cdx = nearest.sprite.x - this.sprite.x;
+      var cdy = nearest.sprite.y - this.sprite.y;
+      nearDist2 = cdx * cdx + cdy * cdy;
+    } else {
+      this._cachedTarget = null;
+      nearest = null;
+    }
+
+    if (!nearest || now - (this._retargetAt || 0) > 800) {
+      this._retargetAt = now;
+      if (corpses) {
+        for (var i = 0; i < corpses.length; i++) {
+          var corp = corpses[i];
+          if (!corp.sprite || !corp.sprite.active || corp._consumed) continue;
+          var dx = corp.sprite.x - this.sprite.x;
+          var dy = corp.sprite.y - this.sprite.y;
+          var d2 = dx * dx + dy * dy;
+          if (d2 < nearDist2) { nearDist2 = d2; nearest = corp; }
+        }
       }
+      this._cachedTarget = nearest;
     }
 
     if (nearest && nearDist2 < 400) {
@@ -712,7 +903,9 @@ var EnemyFactory = (function () {
       xp:     Math.round(def.xp    * scale),
     });
 
-    if (type === 'trog_pygmy')   return new Enemy(scene, x, y, scaledDef);
+    if (type === 'trog_pygmy')    return new Enemy(scene, x, y, scaledDef);
+    if (type === 'trog_basher')   return new Enemy(scene, x, y, scaledDef);
+    if (type === 'trog_virtuoso') return new TrogVirtuosoEnemy(scene, x, y, scaledDef);
     if (type === 'fairy')        return new FairyEnemy(scene, x, y, scaledDef);
     if (type === 'rot_sticker')  return new RotStickerEnemy(scene, x, y, scaledDef);
     if (type === 'goblin')       return new GoblinEnemy(scene, x, y, scaledDef);
@@ -720,6 +913,9 @@ var EnemyFactory = (function () {
     if (type === 'skeleton')     return new SkeletonEnemy(scene, x, y, scaledDef);
     if (type === 'brindle_grub') return new BrindleGrubEnemy(scene, x, y);
     if (type === 'danger_dingo') return new DangerDingoEnemy(scene, x, y, scaledDef);
+    if (type === 'scatterer')    return new ScattererEnemy(scene, x, y, scaledDef);
+    if (type === 'bad_llama')    return new BadLlamaEnemy(scene, x, y, scaledDef);
+    if (type === 'scat_thug')    return new Enemy(scene, x, y, scaledDef);
     return new Enemy(scene, x, y, scaledDef);
   }
 
@@ -752,26 +948,14 @@ var EnemyFactory = (function () {
 
   // Types available per floor
   function typesForFloor(floorNum) {
-    if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_pygmy'];
+    if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_basher', 'trog_virtuoso', 'scatterer', 'scatterer', 'bad_llama', 'scat_thug'];
     // Floor 2: skeletons introduced, crack camels gone
     if (floorNum === 2) return ['skeleton', 'goblin', 'rat', 'fairy', 'skeleton', 'danger_dingo', 'brindle_grub']; // skeleton/danger_dingo weighted
     return ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];
   }
 
-  // ── Sounds ────────────────────────────────────────────────────────────
-
-  var _audioCtx = null;
-  function _getCtx() {
-    if (!_audioCtx) {
-      try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch (e) {}
-    }
-    if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
-    return _audioCtx;
-  }
-
   function _playHitSound(vol) {
-    var ctx = _getCtx();
+    var ctx = GameAudio.getCtx();
     if (!ctx) return;
     try {
       var osc = ctx.createOscillator();
@@ -788,7 +972,7 @@ var EnemyFactory = (function () {
   }
 
   function _playClank(scene) {
-    var ctx = _getCtx();
+    var ctx = GameAudio.getCtx();
     if (!ctx) return;
     try {
       var buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
@@ -806,7 +990,7 @@ var EnemyFactory = (function () {
   }
 
   function _playDeathSound() {
-    var ctx = _getCtx();
+    var ctx = GameAudio.getCtx();
     if (!ctx) return;
     try {
       var osc = ctx.createOscillator();
@@ -832,5 +1016,8 @@ var EnemyFactory = (function () {
     SkeletonEnemy: SkeletonEnemy,
     BrindleGrubEnemy: BrindleGrubEnemy,
     DangerDingoEnemy: DangerDingoEnemy,
+    ScattererEnemy: ScattererEnemy,
+    BadLlamaEnemy: BadLlamaEnemy,
+    resetSwarms: _resetScattererSwarm,
   };
 })();

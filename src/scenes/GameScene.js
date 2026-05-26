@@ -178,6 +178,15 @@ var GameScene = new Phaser.Class({
     }).setDepth(55).setOrigin(0.5, 1).setAlpha(0);
     this._lootPromptPulsing = false;
 
+    this._floatTextPool = [];
+    for (var fti = 0; fti < 12; fti++) {
+      var ft = this.add.text(0, 0, '', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+        stroke: '#000000', strokeThickness: 2,
+      }).setDepth(50).setOrigin(0.5).setVisible(false).setActive(false);
+      this._floatTextPool.push(ft);
+    }
+
     // ── Achievement flags ────────────────────────────────────────────────────
     this._firstKillDone        = this.status.kills > 0; // don't re-fire on floor change
     this._unarmedKillDone      = this.status.kills > 0; // Bronze Weapon Box — one-time
@@ -225,10 +234,16 @@ var GameScene = new Phaser.Class({
     // Enemy missile hits Carl — ignored if Carl is in a safe room
     this.physics.add.overlap(this.carl.getSprite(), this.enemyMissiles, function (carlSpr, missile) {
       if (!missile.active) return;
+      var debuffType  = missile.applyDebuff || null;
+      var sourceName  = missile.sourceName  || 'Fairy';
       missile.setActive(false).setVisible(false).destroy();
       if (scene.isInSafeRoom()) return;
       var dmg = scene.carl.receiveHit(missile.damage || 6, 'projectile');
-      if (dmg > 0) { scene._lastKiller = 'Fairy'; scene._onCarlHurt(dmg, 'projectile'); }
+      if (dmg > 0) {
+        scene._lastKiller = sourceName;
+        scene._onCarlHurt(dmg, 'projectile');
+        if (debuffType) scene.status.applyDebuff(debuffType, 8000, 1, 2000);
+      }
     });
 
     // ── Input: Q = Donut spell ───────────────────────────────────────────────
@@ -406,9 +421,11 @@ var GameScene = new Phaser.Class({
       this.registry.set('savedFlash', true);
     }
 
-    // ── Donut exploration reactions ───────────────────────────────────────────
     var ctX = Math.floor(this.carl.x() / 32);
     var ctY = Math.floor(this.carl.y() / 32);
+    var _carlInSafe = this.isInSafeRoom();
+    this._carlTx = ctX; this._carlTy = ctY; this._carlInSafeCache = _carlInSafe;
+
     var blockKey = Math.floor(ctX / 10) + '_' + Math.floor(ctY / 10);
     if (!this._visitedBlocks[blockKey]) {
       this._visitedBlocks[blockKey] = true;
@@ -452,7 +469,7 @@ var GameScene = new Phaser.Class({
     // ── Safe room HP regen ────────────────────────────────────────────────────
     this._checkSocialMilestones();
 
-    if (nowMs - this._safeRegenTimer > 3000 && this.isInSafeRoom()) {
+    if (nowMs - this._safeRegenTimer > 3000 && _carlInSafe) {
       this._safeRegenTimer = nowMs;
       if (this.status.hp < this.status.maxHp) {
         var regenAmt = 5 + Math.floor(this.status.stats.con / 3);
@@ -463,8 +480,7 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    // ── Out-of-combat HP regen — slow tick when untouched for 5s ────────────
-    if (!this.isInSafeRoom() &&
+    if (!_carlInSafe &&
         nowMs - this.status._lastDamageTime > 5000 &&
         nowMs - this._oocRegenTimer > 4000 &&
         this.status.hp < this.status.maxHp) {
@@ -476,110 +492,105 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    // ── Update enemies ───────────────────────────────────────────────────────
     var scene = this;
     var _eTiles = this.dungeonData.tiles;
-    var _carlInSafe = this.isInSafeRoom();
-    this.enemies.forEach(function (e) {
-      if (!e.isDead()) {
-        // Enemies cannot enter safe rooms or guild hall — freeze and de-aggro
-        var etx = Math.floor(e.sprite.x / 32), ety = Math.floor(e.sprite.y / 32);
-        var etile = _eTiles[ety] && _eTiles[ety][etx];
-        if (etile === DungeonGenerator.SAFE || etile === DungeonGenerator.GUILD) {
-          e.sprite.setVelocity(0, 0);
-          e._aggroed = false;
-          return;
-        }
-        // Drop aggro while Carl is inside a safe zone — enemies lose the scent
-        if (_carlInSafe) { e._aggroed = false; }
+    var _carlX = this.carl.x(), _carlY = this.carl.y();
+    var enArr = this.enemies;
+    for (var enI = 0, enN = enArr.length; enI < enN; enI++) {
+      var e = enArr[enI];
+      if (e.isDead()) continue;
+      var etx = Math.floor(e.sprite.x / 32), ety = Math.floor(e.sprite.y / 32);
+      var erow = _eTiles[ety];
+      var etile = erow ? erow[etx] : null;
+      if (etile === DungeonGenerator.SAFE || etile === DungeonGenerator.GUILD) {
+        e.sprite.setVelocity(0, 0);
+        e._aggroed = false;
+        continue;
+      }
+      if (_carlInSafe) e._aggroed = false;
 
-        e.update(scene.carl.x(), scene.carl.y(), delta, scene.enemyMissiles, scene.corpses);
+      e.update(_carlX, _carlY, delta, this.enemyMissiles, this.corpses);
 
-        if (!scene._combatHintShown && e._aggroed) {
-          scene._combatHintShown = true;
-          scene._showCombatHint();
-        }
+      if (!this._combatHintShown && e._aggroed) {
+        this._combatHintShown = true;
+        this._showCombatHint();
+      }
 
-        // Melee enemy touching Carl
-        if (e.isMelee && e.canMeleeHit(scene.carl.x(), scene.carl.y())) {
-          if (nowMs - e._attackTimer > e.attackCd) {
-            e._attackTimer = nowMs;
-            var dmg = scene.carl.receiveHit(e.damage, e.typeName);
-            if (dmg > 0) {
-              scene._lastKiller = e.typeName;
-              scene._staggerCarl(e.sprite.x, e.sprite.y);
-              if (e.typeName === 'Crack Camel' && e._charging) {
-                scene._knockdownUntil = Math.max(scene._knockdownUntil, nowMs + 700);
-                scene._floatText(scene.carl.x(), scene.carl.y() - 28, 'KNOCKED DOWN!', '#ff8833', 12);
-                scene.cameras.main.shake(120, 0.01);
-              }
-              scene._onCarlHurt(dmg, e.typeName);
-              if (e.onHitEffect) {
-                var effect = e.onHitEffect(scene.status);
-                if (effect === DEBUFF_POISON) {
-                  scene._floatText(scene.carl.x(), scene.carl.y() - 30, 'POISONED', '#44cc44', 11);
-                  scene.messages.push('POISON INFLICTED BY ' + e.typeName.toUpperCase() + '. DONUT LOOKS CONCERNED.');
-                } else if (effect === 'steal') {
-                  e._stolenPotion = true;
-                  scene._floatText(e.sprite.x, e.sprite.y - 14, 'STOLEN!', '#ff8833', 12);
-                  scene.messages.push('GOBLIN STOLE A POTION! IT POCKETS THE VIAL AND CACKLES.');
-                }
+      if (e.isMelee && e.canMeleeHit(_carlX, _carlY)) {
+        if (nowMs - e._attackTimer > e.attackCd) {
+          e._attackTimer = nowMs;
+          var emdmg = this.carl.receiveHit(e.damage, e.typeName);
+          if (emdmg > 0) {
+            this._lastKiller = e.typeName;
+            this._staggerCarl(e.sprite.x, e.sprite.y);
+            if (e.typeName === 'Crack Camel' && e._charging) {
+              this._knockdownUntil = Math.max(this._knockdownUntil, nowMs + 700);
+              this._floatText(_carlX, _carlY - 28, 'KNOCKED DOWN!', '#ff8833', 12);
+              this.cameras.main.shake(120, 0.01);
+            }
+            this._onCarlHurt(emdmg, e.typeName);
+            if (e.onHitEffect) {
+              var effect = e.onHitEffect(this.status);
+              if (effect === DEBUFF_POISON) {
+                this._floatText(_carlX, _carlY - 30, 'POISONED', '#44cc44', 11);
+                this.messages.push('POISON INFLICTED BY ' + e.typeName.toUpperCase() + '. DONUT LOOKS CONCERNED.');
+              } else if (effect === 'steal') {
+                e._stolenPotion = true;
+                this._floatText(e.sprite.x, e.sprite.y - 14, 'STOLEN!', '#ff8833', 12);
+                this.messages.push('GOBLIN STOLE A POTION! IT POCKETS THE VIAL AND CACKLES.');
               }
             }
           }
         }
+      }
 
-        // ── Boss-specific logic ───────────────────────────────────────────
-        if (e.isBoss) {
-          // Phase 2 at 50% HP
-          if (e._phase === 1 && e.hp <= e.maxHp * 0.5) {
-            e._phase = 2;
-            e.speed = Math.round(e.speed * 1.5);
-            e._slamCdMs = 2800;
-            e._slamCd = nowMs; // slam fires immediately
-            e.sprite.setTint(0xff3300);
-            scene.cameras.main.shake(400, 0.014);
-            scene.messages.push('THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.');
-            scene._floatText(e.sprite.x, e.sprite.y - 24, 'PHASE 2!', '#ff4400', 14);
-            _playPhaseTransition();
-            // Summon 3 adds
-            var addTypes = EnemyFactory.typesForFloor(scene.currentFloor);
-            for (var si = 0; si < 3; si++) {
-              var ang = (si / 3) * Math.PI * 2;
-              scene._spawnSingleEnemy(
-                addTypes[Math.floor(Math.random() * addTypes.length)],
-                e.sprite.x + Math.cos(ang) * 72,
-                e.sprite.y + Math.sin(ang) * 72,
-                scene.currentFloor
-              );
-            }
-            scene.time.delayedCall(600, function () {
-              scene.messages.push('"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER');
-            });
+      if (e.isBoss) {
+        if (e._phase === 1 && e.hp <= e.maxHp * 0.5) {
+          e._phase = 2;
+          e.speed = Math.round(e.speed * 1.5);
+          e._slamCdMs = 2800;
+          e._slamCd = nowMs;
+          e.sprite.setTint(0xff3300);
+          this.cameras.main.shake(400, 0.014);
+          this.messages.push('THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.');
+          this._floatText(e.sprite.x, e.sprite.y - 24, 'PHASE 2!', '#ff4400', 14);
+          _playPhaseTransition();
+          var addTypes = EnemyFactory.typesForFloor(this.currentFloor);
+          for (var si = 0; si < 3; si++) {
+            var ang = (si / 3) * Math.PI * 2;
+            this._spawnSingleEnemy(
+              addTypes[Math.floor(Math.random() * addTypes.length)],
+              e.sprite.x + Math.cos(ang) * 72,
+              e.sprite.y + Math.sin(ang) * 72,
+              this.currentFloor
+            );
           }
-          // Ground slam — only when aggroed and not on cooldown
-          if (e._aggroed && nowMs >= e._slamCd) {
-            e._slamCd = nowMs + e._slamCdMs;
-            scene._bossGroundSlam(e);
-          }
-          // Phase 2: throw junk at Carl
-          if (e._phase === 2 && e._aggroed && nowMs >= e._throwCd) {
-            e._throwCd = nowMs + e._throwCdMs;
-            scene._bossThrowJunk(e);
-          }
+          this.time.delayedCall(600, function () {
+            scene.messages.push('"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER');
+          });
+        }
+        if (e._aggroed && nowMs >= e._slamCd) {
+          e._slamCd = nowMs + e._slamCdMs;
+          this._bossGroundSlam(e);
+        }
+        if (e._phase === 2 && e._aggroed && nowMs >= e._throwCd) {
+          e._throwCd = nowMs + e._throwCdMs;
+          this._bossThrowJunk(e);
         }
       }
-    });
+    }
 
-    // Destroy enemy missiles that cross into safe/guild tiles
-    this.enemyMissiles.getChildren().forEach(function (m) {
-      if (!m.active) return;
-      var mtx = Math.floor(m.x / 32), mty = Math.floor(m.y / 32);
-      var mtile = _eTiles[mty] && _eTiles[mty][mtx];
-      if (mtile === DungeonGenerator.SAFE || mtile === DungeonGenerator.GUILD) {
-        m.setActive(false).setVisible(false).destroy();
+    var emArr = this.enemyMissiles.getChildren();
+    for (var emi = 0, emN = emArr.length; emi < emN; emi++) {
+      var em = emArr[emi];
+      if (!em.active) continue;
+      var emtx = Math.floor(em.x / 32), emty = Math.floor(em.y / 32);
+      var emrow = _eTiles[emty];
+      var emtile = emrow ? emrow[emtx] : null;
+      if (emtile === DungeonGenerator.SAFE || emtile === DungeonGenerator.GUILD) {
+        em.setActive(false).setVisible(false).destroy();
       }
-    });
+    }
 
     // ── E key: interact — shop suppresses all other E-key actions ────────────
     if (this.registry.get('shopOpen')) {
@@ -612,56 +623,61 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    // ── Donut missile → enemy hits (manual overlap check) ────────────────────
-    this.missiles.getChildren().forEach(function (m) {
-      if (!m.active) return;
-      var mr = scene._missileRect;
-      mr.x = m.x - 7; mr.y = m.y - 7;
-      scene.enemies.forEach(function (enemy) {
-        if (enemy.isDead()) return;
-        if (enemy.overlapsRect(mr)) {
-          var dmg = m.damage || scene.status.getSpellPower();
-          if (enemy.typeName === 'Trog Pygmy') {
-            scene._trogPygmyMissileExplode(enemy, dmg);
-          } else {
-            enemy.takeDamage(dmg);
-            scene._floatText(enemy.sprite.x + 18, enemy.sprite.y - 28, String(dmg), '#aaddff', 16);
-            if (enemy.typeName === 'Rat') scene._aggroRatPack(enemy);
-          }
-          m.setActive(false).setVisible(false).destroy();
-          _playPickup();
+    var mArr = this.missiles.getChildren();
+    var enemiesArr = this.enemies;
+    var mr = this._missileRect;
+    for (var mi = 0, mN = mArr.length; mi < mN; mi++) {
+      var mm = mArr[mi];
+      if (!mm.active) continue;
+      mr.x = mm.x - 7; mr.y = mm.y - 7;
+      for (var ei = 0, eN = enemiesArr.length; ei < eN; ei++) {
+        var enemy = enemiesArr[ei];
+        if (enemy.isDead()) continue;
+        if (!enemy.overlapsRect(mr)) continue;
+        var dmg = mm.damage || this.status.getSpellPower();
+        if (enemy.typeName === 'Trog Pygmy') {
+          this._trogPygmyMissileExplode(enemy, dmg);
+        } else {
+          enemy.takeDamage(dmg);
+          this._floatText(enemy.sprite.x + 18, enemy.sprite.y - 28, String(dmg), '#aaddff', 16);
+          if (enemy.typeName === 'Rat') this._aggroRatPack(enemy);
         }
-      });
-    });
+        mm.setActive(false).setVisible(false).destroy();
+        _playPickup();
+        break; // missile consumed, stop scanning enemies
+      }
+    }
 
-    // ── XP orb pickup + expiry ────────────────────────────────────────────────
-    this.xpOrbs.getChildren().forEach(function (orb) {
-      if (!orb.active) return;
+    var orbArr = this.xpOrbs.getChildren();
+    var carlX = this.carl.x(), carlY = this.carl.y();
+    var orbSpd = 180 * (delta / 1000);
+    for (var oi = 0, oN = orbArr.length; oi < oN; oi++) {
+      var orb = orbArr[oi];
+      if (!orb.active) continue;
       var age = nowMs - (orb._spawnTime || nowMs);
-      // Fade in last 3s of 12s life
       if (age > 12000) {
         orb.setActive(false).setVisible(false).destroy();
-        return;
+        continue;
       }
       if (age > 9000) orb.setAlpha(1 - (age - 9000) / 3000);
-      var dx = orb.x - scene.carl.x(), dy = orb.y - scene.carl.y();
-      var d2 = dx * dx + dy * dy;
-      // Magnet: drift toward Carl within 90px
-      if (d2 < 8100 && d2 > 4) {
-        var dist = Math.sqrt(d2);
-        var spd = 180 * (delta / 1000);
-        orb.x -= (dx / dist) * spd;
-        orb.y -= (dy / dist) * spd;
+      var odx = orb.x - carlX, ody = orb.y - carlY;
+      var od2 = odx * odx + ody * ody;
+      if (od2 < 8100 && od2 > 4) {
+        var odist = Math.sqrt(od2);
+        orb.x -= (odx / odist) * orbSpd;
+        orb.y -= (ody / odist) * orbSpd;
         orb.refreshBody();
       }
-      if (d2 < 784) { // 28px pickup radius
+      if (od2 < 784) {
         var xpAmt = orb._xp || 5;
-        var lvlUp = scene.status.addXP(xpAmt);
-        if (lvlUp) lvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
+        var lvlUp = this.status.addXP(xpAmt);
+        if (lvlUp) {
+          for (var lui = 0; lui < lvlUp.length; lui++) this._onLevelUp(lvlUp[lui]);
+        }
         orb.setActive(false).setVisible(false).destroy();
         _playPickup();
       }
-    });
+    }
 
     this._updateFog(nowMs);
     this._updateProximityPrompt();
@@ -675,6 +691,7 @@ var GameScene = new Phaser.Class({
     this.tweens.killTweensOf(this._proximityPrompt);
     this._lootPromptPulsing = false;
     if (this._idleTVTimer) { this._idleTVTimer.remove(); this._idleTVTimer = null; }
+    if (EnemyFactory.resetSwarms) EnemyFactory.resetSwarms();
   },
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -711,7 +728,8 @@ var GameScene = new Phaser.Class({
     var scene = this;
     var enemy = EnemyFactory.create(this, type, x, y, floorNum);
     this.physics.add.collider(enemy.sprite, this.wallLayer);
-    if (enemy instanceof EnemyFactory.FairyEnemy) enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy instanceof EnemyFactory.FairyEnemy)    enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy instanceof EnemyFactory.BadLlamaEnemy) enemy.setMissileGroup(this.enemyMissiles);
     if (enemy instanceof EnemyFactory.RotStickerEnemy) {
       enemy.setKnockdownCallback(function (dmg) { scene._applyRotStickerBlast(dmg); });
     }
@@ -895,7 +913,12 @@ var GameScene = new Phaser.Class({
     'Crack Camel': [{ name: 'Camel Hide', quality: 'uncommon' }, { name: 'Camel Bone', quality: 'common' }],
     'Skeleton':    [{ name: 'Bone Shard', quality: 'common' }, { name: 'Skull Fragment', quality: 'common' }],
     'Rot Sticker': [{ name: 'Rot Sticker Carapace', quality: 'uncommon' }, { name: 'Rot Sticker Hemolymph', quality: 'uncommon' }],
-    'Trog Pygmy':  [{ name: 'Trog Scale', quality: 'common' }, { name: 'Trog Venom Sac', quality: 'uncommon' }],
+    'Trog Pygmy':    [{ name: 'Trog Scale', quality: 'common' }, { name: 'Trog Venom Sac', quality: 'uncommon' }],
+    'Trog Basher':   [{ name: 'Trog Scale', quality: 'common' }, { name: 'Trog Knucklebone', quality: 'common' }],
+    'Trog Virtuoso': [{ name: 'Trog Venom Sac', quality: 'uncommon' }, { name: 'Trog Tongue', quality: 'uncommon' }],
+    'Scatterer':     [{ name: 'Scatterer Carapace', quality: 'common' }, { name: 'Scatterer Hemolymph', quality: 'uncommon' }],
+    'Bad Llama':     [{ name: 'Llama Bile', quality: 'uncommon' }, { name: 'Lava Saliva', quality: 'uncommon' }],
+    'Scat Thug':     [{ name: 'Raccoon Pelt', quality: 'common' }, { name: 'Needle Spear', quality: 'common' }],
   },
 
   _craftingDropForEnemy: function (typeName) {
@@ -1536,13 +1559,24 @@ var GameScene = new Phaser.Class({
   },
 
   _floatText: function (x, y, text, color, size) {
-    var t = this.add.text(x, y, text, {
-      fontFamily: 'monospace',
-      fontSize: (size || 13) + 'px',
-      color: color || '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setDepth(50).setOrigin(0.5);
+    var pool = this._floatTextPool;
+    var t = null;
+    for (var i = 0; i < pool.length; i++) {
+      if (!pool[i].active) { t = pool[i]; break; }
+    }
+    if (!t) {
+      t = this.add.text(0, 0, '', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+        stroke: '#000000', strokeThickness: 2,
+      }).setDepth(50).setOrigin(0.5);
+      pool.push(t);
+    }
+    t.setActive(true).setVisible(true);
+    t.setFontSize((size || 13) + 'px');
+    t.setColor(color || '#ffffff');
+    t.setText(text);
+    t.setPosition(x, y);
+    t.setAlpha(1);
 
     this.tweens.add({
       targets: t,
@@ -1550,7 +1584,7 @@ var GameScene = new Phaser.Class({
       alpha: 0,
       duration: 900,
       ease: 'Quad.easeOut',
-      onComplete: function () { t.destroy(); }
+      onComplete: function () { t.setActive(false).setVisible(false); }
     });
   },
 
@@ -1662,13 +1696,15 @@ var GameScene = new Phaser.Class({
 
   _updateProximityPrompt: function () {
     var cx = this.carl.x(), cy = this.carl.y();
-    var INTERACT_R2 = 2304; // 48px radius — same as _checkLootInteract
+    var INTERACT_R2 = 2304; // 48px radius
     var nearest = null;
     var nearDist2 = Infinity;
+    var unopenedCount = 0;
 
     for (var i = 0; i < this.lootBoxes.length; i++) {
       var box = this.lootBoxes[i];
       if (box._opened) continue;
+      if (!box._isDrop) unopenedCount++;
       var dx = box.x - cx, dy = box.y - cy;
       var d2 = dx * dx + dy * dy;
       if (d2 < INTERACT_R2 && d2 < nearDist2) {
@@ -1678,7 +1714,6 @@ var GameScene = new Phaser.Class({
     }
     this._nearestLootBox = nearest;
 
-    // Also check stairs proximity
     var nearStairs = false;
     var st = this.dungeonData.stairsTile;
     if (st) {
@@ -1686,7 +1721,6 @@ var GameScene = new Phaser.Class({
       nearStairs = sdx * sdx + sdy * sdy < 2500;
     }
 
-    // Check nearest Bopca merchant
     var BOPCA_R2 = 80 * 80;
     this._nearBopca = null;
     for (var bpi = 0; bpi < this._bopcas.length; bpi++) {
@@ -1696,13 +1730,9 @@ var GameScene = new Phaser.Class({
     }
 
     var p = this._proximityPrompt;
-    var inSafe = this.isInSafeRoom();
+    var inSafe = this._carlInSafeCache !== undefined ? this._carlInSafeCache : this.isInSafeRoom();
     var packedCount = this._claimedBoxes.length;
     if (nearest) {
-      var unopenedCount = 0;
-      for (var li = 0; li < this.lootBoxes.length; li++) {
-        if (!this.lootBoxes[li]._opened && !this.lootBoxes[li]._isDrop) unopenedCount++;
-      }
       var label;
       if (nearest._isDrop) {
         label = '[E] pick up';
@@ -2393,18 +2423,8 @@ function _getFloorTimerMs(floor) {
 
 // ── Module-level audio helpers ───────────────────────────────────────────────
 
-var _gameAudioCtx = null;
-function _getGameAudioCtx() {
-  if (!_gameAudioCtx) {
-    try { _gameAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    catch (e) {}
-  }
-  if (_gameAudioCtx && _gameAudioCtx.state === 'suspended') _gameAudioCtx.resume();
-  return _gameAudioCtx;
-}
-
 function _playPickup() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var osc = ctx.createOscillator();
@@ -2420,7 +2440,7 @@ function _playPickup() {
 }
 
 function _playLevelUp() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var gain = ctx.createGain();
@@ -2439,7 +2459,7 @@ function _playLevelUp() {
 }
 
 function _playCrit() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var t = ctx.currentTime;
@@ -2465,7 +2485,7 @@ function _playCrit() {
 }
 
 function _playDodge() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var t = ctx.currentTime;
@@ -2482,7 +2502,7 @@ function _playDodge() {
 }
 
 function _playConsumable(type) {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var t = ctx.currentTime;
@@ -2521,7 +2541,7 @@ function _playConsumable(type) {
 
 
 function _playBossSlam() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var t = ctx.currentTime;
@@ -2547,7 +2567,7 @@ function _playBossSlam() {
 }
 
 function _playPhaseTransition() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var t = ctx.currentTime;
@@ -2565,7 +2585,7 @@ function _playPhaseTransition() {
 }
 
 function _playDescend() {
-  var ctx = _getGameAudioCtx();
+  var ctx = GameAudio.getCtx();
   if (!ctx) return;
   try {
     var t = ctx.currentTime;

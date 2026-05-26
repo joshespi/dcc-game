@@ -61,6 +61,7 @@ var Carl = (function () {
     // ── Movement ──────────────────────────────────────────────────────────
     var vx = 0, vy = 0;
     var spd = SPEED + this.status.stats.dex * 1.5;
+    if (this.status.hasDebuff(DEBUFF_SEPTIC)) spd *= 0.72;
 
     if (keys.left.isDown  || cur.left.isDown)  { vx = -spd; this.facing = 'left'; }
     if (keys.right.isDown || cur.right.isDown) { vx =  spd; this.facing = 'right'; }
@@ -72,11 +73,14 @@ var Carl = (function () {
 
     sp.setVelocity(vx, vy);
 
-    // ── Sprite direction ──────────────────────────────────────────────────
-    var inIframe  = now - this._iframeTimer < IFRAMES;
-    var flashOn   = inIframe && Math.floor(now / 80) % 2 === 0;
-    var tex       = (flashOn ? 'carl_hit_' : 'carl_') + this.facing;
-    if (tex !== this._lastTex) { this._lastTex = tex; sp.setTexture(tex); }
+    var inIframe = now - this._iframeTimer < IFRAMES;
+    if (inIframe || this._wasIframe || this.facing !== this._lastFacing) {
+      var flashOn = inIframe && Math.floor(now / 80) % 2 === 0;
+      var tex     = (flashOn ? 'carl_hit_' : 'carl_') + this.facing;
+      if (tex !== this._lastTex) { this._lastTex = tex; sp.setTexture(tex); }
+      this._wasIframe   = inIframe;
+      this._lastFacing  = this.facing;
+    }
 
     // ── Melee attack ──────────────────────────────────────────────────────
     if (Phaser.Input.Keyboard.JustDown(keys.attack) && now - this._attackTimer > ATTACK_CD) {
@@ -167,19 +171,8 @@ var Carl = (function () {
     this.slashSprite.destroy();
   };
 
-  // ── Minimal Web Audio beeps (no assets needed) ─────────────────────────
-  var _audioCtx = null;
-  function _getAudioCtx() {
-    if (!_audioCtx) {
-      try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch (e) {}
-    }
-    if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
-    return _audioCtx;
-  }
-
   function _playSound(scene, type) {
-    var ctx = _getAudioCtx();
+    var ctx = GameAudio.getCtx();
     if (!ctx) return;
     try {
       var osc = ctx.createOscillator();

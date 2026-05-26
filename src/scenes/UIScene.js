@@ -1176,24 +1176,38 @@ var UIScene = new Phaser.Class({
       // dirty consumed by unified block below (also drives hotlist + potionCount)
     }
 
-    // ── HP bar ────────────────────────────────────────────────────────────────
-    var hpPct = status.hpPercent();
-    this._hpFill.setDisplaySize(Math.max(0, 180 * hpPct), 14);
-    var hpColor = hpPct > 0.5 ? 0xcc2222 : hpPct > 0.25 ? 0xff8800 : 0xff4444;
-    this._hpFill.setFillStyle(hpColor);
-    this._hpText.setText(status.hp + '/' + status.maxHp);
+    if (status.hp !== this._lastHp || status.maxHp !== this._lastMaxHp) {
+      this._lastHp = status.hp; this._lastMaxHp = status.maxHp;
+      var hpPct = status.hpPercent();
+      this._hpFill.setDisplaySize(Math.max(0, 180 * hpPct), 14);
+      var hpColor = hpPct > 0.5 ? 0xcc2222 : hpPct > 0.25 ? 0xff8800 : 0xff4444;
+      this._hpFill.setFillStyle(hpColor);
+      this._hpText.setText(status.hp + '/' + status.maxHp);
+    }
 
-    // ── MP bar ────────────────────────────────────────────────────────────────
-    this._mpFill.setDisplaySize(Math.max(0, 180 * status.mpPercent()), 8);
-    this._mpText.setText(status.mp + '/' + status.maxMp);
+    if (status.mp !== this._lastMp || status.maxMp !== this._lastMaxMp) {
+      this._lastMp = status.mp; this._lastMaxMp = status.maxMp;
+      this._mpFill.setDisplaySize(Math.max(0, 180 * status.mpPercent()), 8);
+      this._mpText.setText(status.mp + '/' + status.maxMp);
+    }
 
-    // ── XP bar ────────────────────────────────────────────────────────────────
-    this._xpFill.setDisplaySize(180 * status.xpPercent(), 8);
+    if (status.xp !== this._lastXp || status.xpToNext !== this._lastXpToNext) {
+      this._lastXp = status.xp; this._lastXpToNext = status.xpToNext;
+      this._xpFill.setDisplaySize(180 * status.xpPercent(), 8);
+    }
 
-    // ── Level / floor / kills ─────────────────────────────────────────────────
-    this._levelText.setText('LVL ' + status.level);
-    this._floorText.setText('F' + status.floor + ': ' + MessageSystem.floorName(status.floor));
-    this._killText.setText(status.kills + ' kills');
+    if (status.level !== this._lastLevel) {
+      this._lastLevel = status.level;
+      this._levelText.setText('LVL ' + status.level);
+    }
+    if (status.floor !== this._lastFloor) {
+      this._lastFloor = status.floor;
+      this._floorText.setText('F' + status.floor + ': ' + MessageSystem.floorName(status.floor));
+    }
+    if (status.kills !== this._lastKills) {
+      this._lastKills = status.kills;
+      this._killText.setText(status.kills + ' kills');
+    }
 
     // ── Saved flash ───────────────────────────────────────────────────────────
     if (this.registry.get('savedFlash')) {
@@ -1306,19 +1320,21 @@ var UIScene = new Phaser.Class({
       }
     }
 
-    // ── Unspent stat points ───────────────────────────────────────────────────
-    if (status.statPoints > 0) {
-      this._statPtsText.setText(status.statPoints + ' pts [I]');
-      if (!this._statPtsTween) {
-        this._statPtsTween = this.tweens.add({
-          targets: this._statPtsText, alpha: 0.3, duration: 700,
-          yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-        });
+    if (status.statPoints !== this._lastStatPts) {
+      this._lastStatPts = status.statPoints;
+      if (status.statPoints > 0) {
+        this._statPtsText.setText(status.statPoints + ' pts [I]');
+        if (!this._statPtsTween) {
+          this._statPtsTween = this.tweens.add({
+            targets: this._statPtsText, alpha: 0.3, duration: 700,
+            yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+          });
+        }
+      } else {
+        this._statPtsText.setText('');
+        if (this._statPtsTween) { this._statPtsTween.stop(); this._statPtsTween = null; }
+        this._statPtsText.setAlpha(1);
       }
-    } else {
-      this._statPtsText.setText('');
-      if (this._statPtsTween) { this._statPtsTween.stop(); this._statPtsTween = null; }
-      this._statPtsText.setAlpha(1);
     }
 
     // ── Active debuffs ────────────────────────────────────────────────────────
@@ -1399,52 +1415,65 @@ var UIScene = new Phaser.Class({
       // Redraw when dungeon changes (new floor) or fog reveals new tiles
       var fogDirty = this.registry.get('fogDirty');
       if (dungeon !== this._mmDungeonKey || fogDirty) {
+        if (dungeon !== this._mmDungeonKey) {
+          this._mmStairsPlaced = false;
+          this._mmBossPlaced   = false;
+        }
         this._mmDungeonKey = dungeon;
         if (fogDirty) this.registry.set('fogDirty', false);
         var fog = this.registry.get('fogGrid');
         this._drawMinimapTiles(dungeon, fog);
       }
-      // Update Carl dot position every frame
       if (gameScene && gameScene.carl) {
-        var tileX = gameScene.carl.x() / 32;
-        var tileY = gameScene.carl.y() / 32;
         var scale = this._mmSize / dungeon.mapW;
-        this._mmCarl.setPosition(
-          this._mmX + tileX * scale,
-          this._mmY + tileY * scale
-        );
-        // Stairs dot (hidden when no stairs on this floor)
-        if (dungeon.stairsTile) {
-          this._mmStairs.setVisible(true).setPosition(
-            this._mmX + (dungeon.stairsTile.x + 0.5) * scale,
-            this._mmY + (dungeon.stairsTile.y + 0.5) * scale
+        var cTx = Math.floor(gameScene.carl.x() / 32);
+        var cTy = Math.floor(gameScene.carl.y() / 32);
+        if (cTx !== this._mmCarlTx || cTy !== this._mmCarlTy) {
+          this._mmCarlTx = cTx; this._mmCarlTy = cTy;
+          this._mmCarl.setPosition(
+            this._mmX + (cTx + 0.5) * scale,
+            this._mmY + (cTy + 0.5) * scale
           );
-        } else {
-          this._mmStairs.setVisible(false);
         }
-        // Boss dot — always visible, hidden after boss killed
-        if (dungeon.bossRoom) {
-          var gs = this._gameScene;
-          var bossAlive = gs && gs._bossEnemy && !gs._bossEnemy.isDead();
-          var bcx = dungeon.bossRoom.x + dungeon.bossRoom.w / 2;
-          var bcy = dungeon.bossRoom.y + dungeon.bossRoom.h / 2;
-          this._mmBoss.setVisible(!!bossAlive).setPosition(
-            this._mmX + bcx * scale,
-            this._mmY + bcy * scale
-          );
-        } else {
-          this._mmBoss.setVisible(false);
+        if (!this._mmStairsPlaced) {
+          if (dungeon.stairsTile) {
+            this._mmStairs.setVisible(true).setPosition(
+              this._mmX + (dungeon.stairsTile.x + 0.5) * scale,
+              this._mmY + (dungeon.stairsTile.y + 0.5) * scale
+            );
+          } else {
+            this._mmStairs.setVisible(false);
+          }
+          this._mmStairsPlaced = true;
+        }
+        var gs = this._gameScene;
+        var bossAlive = !!(gs && gs._bossEnemy && !gs._bossEnemy.isDead());
+        if (bossAlive !== this._mmBossLastAlive || !this._mmBossPlaced) {
+          this._mmBossLastAlive = bossAlive;
+          this._mmBossPlaced = true;
+          if (dungeon.bossRoom) {
+            var bcx = dungeon.bossRoom.x + dungeon.bossRoom.w / 2;
+            var bcy = dungeon.bossRoom.y + dungeon.bossRoom.h / 2;
+            this._mmBoss.setVisible(bossAlive).setPosition(
+              this._mmX + bcx * scale,
+              this._mmY + bcy * scale
+            );
+          } else {
+            this._mmBoss.setVisible(false);
+          }
         }
       }
     }
 
-    // ── Social metrics ────────────────────────────────────────────────────────
     if (status && this._hudUnlocked) {
-      var goldLine = status.gold > 0 ? '\n' + status.gold + 'g' : '';
-      this._viewsText.setText(
-        _fmtN(status.views) + ' views\n' +
-        _fmtN(status.followers) + ' followers' + goldLine
-      );
+      if (status.views !== this._lastViews || status.followers !== this._lastFollowers || status.gold !== this._lastGold) {
+        this._lastViews = status.views; this._lastFollowers = status.followers; this._lastGold = status.gold;
+        var goldLine = status.gold > 0 ? '\n' + status.gold + 'g' : '';
+        this._viewsText.setText(
+          _fmtN(status.views) + ' views\n' +
+          _fmtN(status.followers) + ' followers' + goldLine
+        );
+      }
     }
 
     // ── Message feed ──────────────────────────────────────────────────────────

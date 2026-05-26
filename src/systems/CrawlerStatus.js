@@ -1,4 +1,5 @@
-var DEBUFF_POISON = 'poison';
+var DEBUFF_POISON  = 'poison';
+var DEBUFF_SEPTIC  = 'septic';
 
 // Tracks Carl's level, stats, HP, XP, inventory — the dungeon's crawler record
 var CrawlerStatus = (function () {
