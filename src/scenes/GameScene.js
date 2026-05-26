@@ -1944,7 +1944,7 @@ var GameScene = new Phaser.Class({
     var uniqueDrop = hoarderPool[Math.floor(Math.random() * hoarderPool.length)];
     var ubox = scene.physics.add.staticImage(enemy.sprite.x - 20, enemy.sprite.y - 16, 'loot_box');
     ubox.setDepth(5).setTint(BOX_TIER_TINT.legendary);
-    ubox._opened = false; ubox._tier = 'legendary'; ubox._contents = [uniqueDrop]; ubox._isDrop = true;
+    ubox._opened = false; ubox._tier = 'legendary'; ubox._contents = uniqueDrop; ubox._isDrop = true;
     scene.lootBoxes.push(ubox);
     scene.messages.push('THE HOARDER\'S COLLECTION SCATTERS. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!');
 
@@ -1965,6 +1965,8 @@ var GameScene = new Phaser.Class({
       scene.messages.push(MessageSystem.donutReaction('kill'));
     });
     if (bossLvlUp) bossLvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
+    // Remove dead boss from enemies array
+    this.enemies = this.enemies.filter(function (e) { return !e.isDead(); });
     // Start creep wave — adjacent mobs infiltrate every 45s
     this._startCreepWaves();
   },
@@ -2204,6 +2206,7 @@ var GameScene = new Phaser.Class({
     var adef  = 1 + floor + Math.floor(Math.random() * 3);
     stock.push({ name: aname, type: 'armor', sprite: 'armor', defense: adef, cost: 25 + floor * 8 });
     stock.push({ name: 'Bronze Loot Box', type: 'loot_box', tier: 'bronze', sprite: 'loot_box', cost: 60 });
+    stock.push({ name: 'SELL JUNK', type: 'sell_junk', cost: 0 });
     return stock;
   },
 
@@ -2211,8 +2214,30 @@ var GameScene = new Phaser.Class({
     var shopData = this.registry.get('shopData');
     if (!shopData) return;
     var item = shopData.stock[idx];
-    if (!item || this.status.gold < item.cost) return;
+    if (!item) return;
 
+    if (item.type === 'sell_junk') {
+      var soldCount = 0, goldEarned = 0;
+      var eqWep = this.status.equippedWeapon;
+      var eqArm = this.status.equippedArmor;
+      this.status.inventory = this.status.inventory.filter(function (i) {
+        if (i.type === 'crafting') { soldCount++; goldEarned += 2; return false; }
+        if (i.type === 'weapon' && i !== eqWep && eqWep && i.damage < eqWep.damage) { soldCount++; goldEarned += 3; return false; }
+        if (i.type === 'armor'  && i !== eqArm && eqArm && i.defense < eqArm.defense) { soldCount++; goldEarned += 3; return false; }
+        return true;
+      });
+      if (soldCount === 0) {
+        this.messages.push('TALLY: "YOU HAVE NOTHING WORTH JUNKING. I AM NOT IMPRESSED." NO SALE.');
+      } else {
+        this.status.gold += goldEarned;
+        this.messages.push('TALLY TAKES YOUR JUNK. ' + soldCount + ' ITEM' + (soldCount > 1 ? 'S' : '') + ' SOLD FOR ' + goldEarned + 'G. "PLEASURE DOING BUSINESS."');
+      }
+      this._markInvDirty();
+      this.registry.set('shopData', { stock: shopData.stock, gold: this.status.gold });
+      return;
+    }
+
+    if (this.status.gold < item.cost) return;
     this.status.gold -= item.cost;
 
     if (item.type === 'loot_box') {

@@ -1,4 +1,4 @@
-var GAME_VERSION = '20260525-13';
+var GAME_VERSION = '20260525-14';
 [
   'src/sprites.js',
   'src/systems/SaveSystem.js',

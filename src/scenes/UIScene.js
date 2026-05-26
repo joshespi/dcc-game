@@ -417,7 +417,7 @@ var UIScene = new Phaser.Class({
       var shopData = scene.registry.get('shopData');
       if (!shopData) return;
       var item = shopData.stock[scene._shopCursor];
-      if (item && shopData.gold >= item.cost) {
+      if (item && (item.type === 'sell_junk' || shopData.gold >= item.cost)) {
         scene.registry.set('shopBuyIdx', scene._shopCursor);
       }
     });
@@ -780,26 +780,31 @@ var UIScene = new Phaser.Class({
       var item = stock[si];
       var ry = LIST_Y + si * ROW_H;
       var isSelected = (si === this._shopCursor);
-      var canAfford = (shopData.gold >= item.cost);
+      var canAfford = item.type === 'sell_junk' || (shopData.gold >= item.cost);
 
       if (isSelected) {
         this._shopRowsContainer.add(
           this.add.rectangle(px + 6, ry, PW - 12, ROW_H - 2, 0x1a2a4a, 0.9).setOrigin(0, 0));
       }
 
+      var isSellJunk = item.type === 'sell_junk';
       var suffix = '';
       if (item.damage)          suffix = '  [dmg ' + item.damage + ']';
       else if (item.defense)    suffix = '  [def ' + item.defense + ']';
       else if (item.healAmount) suffix = '  [+' + item.healAmount + ' hp]';
       else if (item.mpAmount)   suffix = '  [+' + item.mpAmount + ' mp]';
 
+      var nameColor = isSellJunk ? '#cc8833' : (canAfford ? '#ccddee' : '#665566');
+      var priceLabel = isSellJunk ? 'SELL' : (item.cost + 'g');
+      var priceColor = isSellJunk ? '#cc8833' : (canAfford ? '#ffdd57' : '#886644');
+
       this._shopRowsContainer.add([
         this.add.text(px + 10, ry + ROW_H / 2, isSelected ? '▶' : ' ',
           { fontFamily: 'monospace', fontSize: '10px', color: '#88bbff' }).setOrigin(0, 0.5),
         this.add.text(px + 22, ry + ROW_H / 2, item.name + suffix,
-          { fontFamily: 'monospace', fontSize: '10px', color: canAfford ? '#ccddee' : '#665566' }).setOrigin(0, 0.5),
-        this.add.text(px + PW - 14, ry + ROW_H / 2, item.cost + 'g',
-          { fontFamily: 'monospace', fontSize: '10px', color: canAfford ? '#ffdd57' : '#886644' }).setOrigin(1, 0.5),
+          { fontFamily: 'monospace', fontSize: '10px', color: nameColor }).setOrigin(0, 0.5),
+        this.add.text(px + PW - 14, ry + ROW_H / 2, priceLabel,
+          { fontFamily: 'monospace', fontSize: '10px', color: priceColor }).setOrigin(1, 0.5),
       ]);
     }
   },
