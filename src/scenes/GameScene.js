@@ -580,10 +580,10 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    var emArr = this.enemyMissiles.getChildren();
+    var emArr = this.enemyMissiles.getChildren().slice();
     for (var emi = 0, emN = emArr.length; emi < emN; emi++) {
       var em = emArr[emi];
-      if (!em.active) continue;
+      if (!em || !em.active) continue;
       var emtx = Math.floor(em.x / 32), emty = Math.floor(em.y / 32);
       var emrow = _eTiles[emty];
       var emtile = emrow ? emrow[emtx] : null;
@@ -623,12 +623,12 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    var mArr = this.missiles.getChildren();
+    var mArr = this.missiles.getChildren().slice();
     var enemiesArr = this.enemies;
     var mr = this._missileRect;
     for (var mi = 0, mN = mArr.length; mi < mN; mi++) {
       var mm = mArr[mi];
-      if (!mm.active) continue;
+      if (!mm || !mm.active) continue;
       mr.x = mm.x - 7; mr.y = mm.y - 7;
       for (var ei = 0, eN = enemiesArr.length; ei < eN; ei++) {
         var enemy = enemiesArr[ei];
@@ -648,12 +648,12 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    var orbArr = this.xpOrbs.getChildren();
+    var orbArr = this.xpOrbs.getChildren().slice();
     var carlX = this.carl.x(), carlY = this.carl.y();
     var orbSpd = 180 * (delta / 1000);
     for (var oi = 0, oN = orbArr.length; oi < oN; oi++) {
       var orb = orbArr[oi];
-      if (!orb.active) continue;
+      if (!orb || !orb.active) continue;
       var age = nowMs - (orb._spawnTime || nowMs);
       if (age > 12000) {
         orb.setActive(false).setVisible(false).destroy();
