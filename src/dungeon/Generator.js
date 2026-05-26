@@ -148,17 +148,32 @@ var DungeonGenerator = (function () {
       var bry = Math.floor(bossBlock.y + bossBlock.h / 2) - Math.floor(brh / 2);
       if (brx > 1 && bry > 1 && brx + brw < this.mapW - 1 && bry + brh < this.mapH - 1) {
         this._carveRect(tiles, brx, bry, brw, brh, FLOOR);
-        // Wall the room back in on all sides (boss room is sealed except one entrance)
+        // Wall the room back in on all sides
         for (var brty = bry; brty < bry + brh; brty++) {
           tiles[brty][brx] = WALL; tiles[brty][brx + brw - 1] = WALL;
         }
         for (var brtx = brx; brtx < brx + brw; brtx++) {
           tiles[bry][brtx] = WALL; tiles[bry + brh - 1][brtx] = WALL;
         }
-        // Single doorway on south wall center
+        // South doorway — carve south until hitting existing FLOOR (artery/alley)
         var brdx = Math.floor(brx + brw / 2);
-        tiles[bry + brh - 1][brdx] = FLOOR;
-        bossRoom = { x: brx, y: bry, w: brw, h: brh, doorX: brdx, doorY: bry + brh - 1 };
+        var brdy = bry + brh - 1;
+        tiles[brdy][brdx] = FLOOR;
+        for (var bcy = bry + brh; bcy < this.mapH - 1; bcy++) {
+          if (tiles[bcy][brdx] === FLOOR) break;
+          tiles[bcy][brdx] = FLOOR;
+          if (bcy > bry + brh + 8) break;
+        }
+        // West doorway — carve west until hitting existing FLOOR (alley in block)
+        // West wall alleys are cut off by the room; this guarantees horizontal access
+        var brmidy = Math.floor(bry + brh / 2);
+        tiles[brmidy][brx] = FLOOR;
+        for (var bcx = brx - 1; bcx > 0; bcx--) {
+          if (tiles[brmidy][bcx] === FLOOR) break;
+          tiles[brmidy][bcx] = FLOOR;
+          if (bcx < brx - 8) break;
+        }
+        bossRoom = { x: brx, y: bry, w: brw, h: brh, doorX: brdx, doorY: brdy };
       }
     }
 

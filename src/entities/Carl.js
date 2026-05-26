@@ -22,6 +22,7 @@ var Carl = (function () {
     this._iframeTimer  = 0;
     this._healTimer    = 0;
     this._attackActive = false;
+    this._lastTex      = '';
     this._attackType   = 'punch'; // alternates punch / kick
     this._swingBox     = null;
     this._onHit        = null; // callback(damage, source)
@@ -74,8 +75,8 @@ var Carl = (function () {
     // ── Sprite direction ──────────────────────────────────────────────────
     var inIframe  = now - this._iframeTimer < IFRAMES;
     var flashOn   = inIframe && Math.floor(now / 80) % 2 === 0;
-    var texBase   = flashOn ? 'carl_hit_' : 'carl_';
-    sp.setTexture(texBase + this.facing);
+    var tex       = (flashOn ? 'carl_hit_' : 'carl_') + this.facing;
+    if (tex !== this._lastTex) { this._lastTex = tex; sp.setTexture(tex); }
 
     // ── Melee attack ──────────────────────────────────────────────────────
     if (Phaser.Input.Keyboard.JustDown(keys.attack) && now - this._attackTimer > ATTACK_CD) {

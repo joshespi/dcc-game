@@ -54,8 +54,6 @@ var UIScene = new Phaser.Class({
     this._potionCount = 0;
     this._gameScene = null;
     this._hudUnlocked = false;
-    this._spellWasReady = null;
-    this._surgeWasReady = null;
     this._debuffStr     = null;
   },
 
@@ -67,6 +65,11 @@ var UIScene = new Phaser.Class({
     // ── Hurt vignette — full-screen red flash on damage ───────────────────────
     this._hurtVignette = this.add.rectangle(0, 0, W, H, 0xcc0000, 0)
       .setOrigin(0, 0).setDepth(190).setScrollFactor(0);
+
+    // ── HUD panel backgrounds — subtle dark overlay so text reads over any tile ─
+    // Right panel height matches MM_Y(48) + MM_SIZE(96) + 26 for views label below minimap
+    this._hudBgLeft  = this.add.rectangle(4, 4, 208, 102, 0x000000, 0.52).setOrigin(0, 0).setDepth(198);
+    this._hudBgRight = this.add.rectangle(W - 218, 4, 214, 170, 0x000000, 0.52).setOrigin(0, 0).setDepth(198);
 
     // ── HP bar ───────────────────────────────────────────────────────────────
     this._hpBg = this.add.rectangle(14, 14, 180, 14, 0x220000).setOrigin(0, 0).setDepth(200);
@@ -169,34 +172,67 @@ var UIScene = new Phaser.Class({
       fontFamily: 'monospace', fontSize: '9px', color: '#888888', align: 'right'
     }).setDepth(203).setOrigin(1, 0).setAlpha(0);
 
-    // ── Donut spell cooldown ──────────────────────────────────────────────────
-    this._spellBg    = this.add.rectangle(14, H - 52, 44, 44, 0x110022).setOrigin(0, 0).setDepth(200);
-    this._spellFill  = this.add.rectangle(14, H - 52, 44, 44, 0x4422aa).setOrigin(0, 0).setDepth(201);
-    this._spellBorder= this.add.rectangle(14, H - 52, 44, 44, 0x6644cc)
-      .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1, 0x8866ee);
-    this._spellIcon  = this.add.text(36, H - 30, 'Q', {
-      fontFamily: 'monospace', fontSize: '18px', color: '#cc99ff'
-    }).setDepth(204).setOrigin(0.5);
-    this._spellLabel = this.add.text(36, H - 52, 'MISSILE', {
-      fontFamily: 'monospace', fontSize: '7px', color: '#9977cc'
-    }).setDepth(203).setOrigin(0.5, 0);
+    // ── Action buttons — ATTACK (SPACE) and POTION (E) ───────────────────────
+    var ABW = 64, ABH = 46, ABY = H - 54, ABG = 4;
+    var ABX1 = 14, ABX2 = ABX1 + ABW + ABG, ABX3 = ABX2 + ABW + ABG, ABX4 = ABX3 + ABW + ABG;
 
-    // ── Healing Surge cooldown (R key) ────────────────────────────────────────
-    this._surgeBg    = this.add.rectangle(62, H - 52, 44, 44, 0x001122).setOrigin(0, 0).setDepth(200);
-    this._surgeFill  = this.add.rectangle(62, H - 52, 44, 44, 0x228844).setOrigin(0, 0).setDepth(201);
-    this._surgeBorder= this.add.rectangle(62, H - 52, 44, 44, 0x44aa66)
-      .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1, 0x66cc88);
-    this._surgeIcon  = this.add.text(84, H - 30, 'R', {
-      fontFamily: 'monospace', fontSize: '18px', color: '#aaffcc'
-    }).setDepth(204).setOrigin(0.5);
-    this.add.text(84, H - 52, 'SURGE', {
-      fontFamily: 'monospace', fontSize: '7px', color: '#66aa88'
-    }).setDepth(203).setOrigin(0.5, 0);
+    // SPACE / ATTACK
+    this._atkBg     = this.add.rectangle(ABX1, ABY, ABW, ABH, 0x130608, 0.93).setOrigin(0, 0).setDepth(200);
+    this._atkAccent = this.add.rectangle(ABX1, ABY + 4, 3, ABH - 8, 0xcc3311).setOrigin(0, 0).setDepth(201);
+    this._atkBorder = this.add.rectangle(ABX1, ABY, ABW, ABH, 0)
+      .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1.5, 0x773322);
+    this._atkLabel  = this.add.text(ABX1 + ABW / 2 + 2, ABY + ABH / 2 - 5, 'ATTACK', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#dd5533',
+    }).setOrigin(0.5).setDepth(203);
+    this._atkKey    = this.add.text(ABX1 + ABW - 5, ABY + ABH - 5, 'SPACE', {
+      fontFamily: 'monospace', fontSize: '8px', color: '#664433',
+    }).setOrigin(1, 1).setDepth(203);
 
-    // Potion indicator
-    this._potionText = this.add.text(110, H - 22, '', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#ff8888'
-    }).setDepth(203).setOrigin(0, 0);
+    // E / POTION
+    this._potBg     = this.add.rectangle(ABX2, ABY, ABW, ABH, 0x040f07, 0.93).setOrigin(0, 0).setDepth(200);
+    this._potAccent = this.add.rectangle(ABX2, ABY + 4, 3, ABH - 8, 0x2a9950).setOrigin(0, 0).setDepth(201);
+    this._potBorder = this.add.rectangle(ABX2, ABY, ABW, ABH, 0)
+      .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1.5, 0x225533);
+    this._potLabel  = this.add.text(ABX2 + ABW / 2 + 2, ABY + ABH / 2 - 5, 'POTION', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#44bb66',
+    }).setOrigin(0.5).setDepth(203);
+    this._potCount  = this.add.text(ABX2 + ABW - 5, ABY + 5, '', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#ffdd55',
+    }).setOrigin(1, 0).setDepth(203);
+    this._potKey    = this.add.text(ABX2 + ABW - 5, ABY + ABH - 5, 'E', {
+      fontFamily: 'monospace', fontSize: '8px', color: '#335544',
+    }).setOrigin(1, 1).setDepth(203);
+
+    // Q / MISSILE (Donut spell — cooldown fill animates from bottom up)
+    this._spellBg    = this.add.rectangle(ABX3, ABY, ABW, ABH, 0x0d0618, 0.93).setOrigin(0, 0).setDepth(200);
+    this._spellFill  = this.add.rectangle(ABX3, ABY, ABW, ABH, 0x4422aa).setOrigin(0, 0).setDepth(201);
+    this._spellAccent= this.add.rectangle(ABX3, ABY + 4, 3, ABH - 8, 0x8855dd).setOrigin(0, 0).setDepth(201);
+    this._spellBorder= this.add.rectangle(ABX3, ABY, ABW, ABH, 0)
+      .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1.5, 0x553377);
+    this._spellLabel = this.add.text(ABX3 + ABW / 2 + 2, ABY + ABH / 2 - 5, 'MISSILE', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#9966cc',
+    }).setOrigin(0.5).setDepth(203);
+    this._spellKey   = this.add.text(ABX3 + ABW - 5, ABY + ABH - 5, 'Q', {
+      fontFamily: 'monospace', fontSize: '8px', color: '#553366',
+    }).setOrigin(1, 1).setDepth(203);
+
+    // R / SURGE (Donut heal — cooldown fill animates from bottom up)
+    this._surgeBg    = this.add.rectangle(ABX4, ABY, ABW, ABH, 0x041309, 0.93).setOrigin(0, 0).setDepth(200);
+    this._surgeFill  = this.add.rectangle(ABX4, ABY, ABW, ABH, 0x228844).setOrigin(0, 0).setDepth(201);
+    this._surgeAccent= this.add.rectangle(ABX4, ABY + 4, 3, ABH - 8, 0x44cc77).setOrigin(0, 0).setDepth(201);
+    this._surgeBorder= this.add.rectangle(ABX4, ABY, ABW, ABH, 0)
+      .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1.5, 0x224433);
+    this._surgeLabel = this.add.text(ABX4 + ABW / 2 + 2, ABY + ABH / 2 - 5, 'SURGE', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#44aa66',
+    }).setOrigin(0.5).setDepth(203);
+    this._surgeKey   = this.add.text(ABX4 + ABW - 5, ABY + ABH - 5, 'R', {
+      fontFamily: 'monospace', fontSize: '8px', color: '#224433',
+    }).setOrigin(1, 1).setDepth(203);
+
+    this._spellWasReady = null;
+    this._surgeWasReady = null;
+    this._ABY = ABY; this._ABW = ABW; this._ABH = ABH;
+
 
     // ── Message feed (bottom strip) ───────────────────────────────────────────
     this._msgBg = this.add.rectangle(0, H - 24, W, 24, 0x000000, 0.7)
@@ -206,32 +242,12 @@ var UIScene = new Phaser.Class({
       align: 'center', wordWrap: { width: W - 20 }
     }).setDepth(204).setOrigin(0.5);
 
-    // ── Hotlist bar (10 slots, centered, above message strip) ────────────────
-    var SLOT_SIZE = 36, SLOT_GAP = 2;
-    var hotlistW = 10 * SLOT_SIZE + 9 * SLOT_GAP;
-    var hlStartX = Math.floor((W - hotlistW) / 2);
-    var hlY = H - 64 - SLOT_SIZE; // sits above hint line
+    // ── Hotlist bar — hidden for now, rework later ────────────────────────────
     this._hotlistSlots = [];
-    for (var si = 0; si < 10; si++) {
-      var sx = hlStartX + si * (SLOT_SIZE + SLOT_GAP);
-      var slotBg    = this.add.rectangle(sx, hlY, SLOT_SIZE, SLOT_SIZE, 0x110022, 0.85).setOrigin(0, 0).setDepth(200);
-      var slotBorder= this.add.rectangle(sx, hlY, SLOT_SIZE, SLOT_SIZE, 0x443366)
-        .setOrigin(0, 0).setDepth(202).setFillStyle(0, 0).setStrokeStyle(1, 0x6644aa);
-      var keyLabel  = this.add.text(sx + 3, hlY + 2, si === 9 ? '0' : String(si + 1), {
-        fontFamily: 'monospace', fontSize: '8px', color: '#554466'
-      }).setDepth(204).setOrigin(0, 0);
-      var itemLabel = this.add.text(sx + SLOT_SIZE / 2, hlY + SLOT_SIZE / 2 + 4, '', {
-        fontFamily: 'monospace', fontSize: '8px', color: '#ddccff', align: 'center'
-      }).setDepth(204).setOrigin(0.5);
-      var countLabel= this.add.text(sx + SLOT_SIZE - 3, hlY + SLOT_SIZE - 3, '', {
-        fontFamily: 'monospace', fontSize: '8px', color: '#ffaa44'
-      }).setDepth(204).setOrigin(1, 1);
-      this._hotlistSlots.push({ bg: slotBg, border: slotBorder, key: keyLabel, item: itemLabel, count: countLabel, x: sx, y: hlY });
-    }
 
     // Persistent mini controls line — stays dim in corner
     this._hint = this.add.text(W / 2, H - 48,
-      'WASD move   SPACE punch/kick   Q spell   E use   T consumable   1-0 hotlist   I inventory   K skills',
+      'WASD move   SPACE attack   E potion   Q missile   R surge   I inventory   K skills',
       { fontFamily: 'monospace', fontSize: '10px', color: '#998aaa' }
     ).setDepth(203).setOrigin(0.5);
     // Fade to dim after 14s — stays legible
@@ -1325,29 +1341,6 @@ var UIScene = new Phaser.Class({
       }
     }
 
-    // ── Donut cooldowns ────────────────────────────────────────────────────────
-    if (gameScene && gameScene.donut) {
-      var frac = gameScene.donut.getSpellCooldownFraction();
-      this._spellFill.setDisplaySize(44, Math.floor(44 * frac));
-      this._spellFill.setY(this.H - 52 + 44 * (1 - frac));
-      var rdy = frac >= 1;
-      if (rdy !== this._spellWasReady) {
-        this._spellWasReady = rdy;
-        this._spellIcon.setColor(rdy ? '#ffffff' : '#664488');
-        this._spellBorder.setStrokeStyle(1, rdy ? 0xcc88ff : 0x553377);
-      }
-
-      var sfrac = gameScene.donut.getSurgeCooldownFraction();
-      this._surgeFill.setDisplaySize(44, Math.floor(44 * sfrac));
-      this._surgeFill.setY(this.H - 52 + 44 * (1 - sfrac));
-      var srdy = sfrac >= 1;
-      if (srdy !== this._surgeWasReady) {
-        this._surgeWasReady = srdy;
-        this._surgeIcon.setColor(srdy ? '#ffffff' : '#226644');
-        this._surgeBorder.setStrokeStyle(1, srdy ? 0x66ffaa : 0x224433);
-      }
-    }
-
     if (this._invDirty) {
       if (!this._invOpen) {
         var pc = 0;
@@ -1357,9 +1350,42 @@ var UIScene = new Phaser.Class({
         this._potionCount = pc;
       }
       var pots = this._potionCount;
-      this._potionText.setText(pots > 0 ? '[E] ' + pots + ' potion' + (pots > 1 ? 's' : '') : 'no potions');
+      if (pots > 0) {
+        this._potCount.setText('×' + pots);
+        this._potLabel.setColor('#44bb66');
+        this._potBorder.setStrokeStyle(1.5, 0x225533);
+        this._potAccent.setAlpha(1);
+      } else {
+        this._potCount.setText('EMPTY');
+        this._potLabel.setColor('#334433');
+        this._potBorder.setStrokeStyle(1.5, 0x1a2e1a);
+        this._potAccent.setAlpha(0.3);
+      }
       this._updateHotlistHUD(status);
       this._invDirty = false;
+    }
+
+    // ── Donut cooldown fills ──────────────────────────────────────────────────
+    if (gameScene && gameScene.donut) {
+      var ABY = this._ABY, ABW = this._ABW, ABH = this._ABH;
+      var frac = gameScene.donut.getSpellCooldownFraction();
+      var sfillH = Math.floor(ABH * frac);
+      this._spellFill.setDisplaySize(ABW, sfillH).setY(ABY + ABH - sfillH);
+      var rdy = frac >= 1;
+      if (rdy !== this._spellWasReady) {
+        this._spellWasReady = rdy;
+        this._spellLabel.setColor(rdy ? '#cc99ff' : '#664488');
+        this._spellBorder.setStrokeStyle(1.5, rdy ? 0x8855dd : 0x553377);
+      }
+      var sfrac = gameScene.donut.getSurgeCooldownFraction();
+      var surgeFillH = Math.floor(ABH * sfrac);
+      this._surgeFill.setDisplaySize(ABW, surgeFillH).setY(ABY + ABH - surgeFillH);
+      var srdy = sfrac >= 1;
+      if (srdy !== this._surgeWasReady) {
+        this._surgeWasReady = srdy;
+        this._surgeLabel.setColor(srdy ? '#66ffaa' : '#226644');
+        this._surgeBorder.setStrokeStyle(1.5, srdy ? 0x44cc77 : 0x224433);
+      }
     }
 
     // ── Minimap ───────────────────────────────────────────────────────────────
@@ -1482,29 +1508,18 @@ var UIScene = new Phaser.Class({
     this._mmCarl.setAlpha(alpha);
     this._mmStairs.setAlpha(alpha);
     this._mmBoss.setAlpha(alpha);
-    // Hotlist bar
-    for (var i = 0; i < this._hotlistSlots.length; i++) {
-      var s = this._hotlistSlots[i];
-      s.bg.setAlpha(alpha); s.border.setAlpha(alpha);
-      s.key.setAlpha(alpha); s.item.setAlpha(alpha); s.count.setAlpha(alpha);
-    }
     // Right-side stats (kills, stairs, stat pts) — keep floor text visible
     this._killText.setAlpha(alpha);
     this._stairsText.setAlpha(alpha);
     this._closureText.setAlpha(alpha);
     this._statPtsText.setAlpha(alpha);
     this._viewsText.setAlpha(alpha);
-    // Spell/Donut cooldown widgets
-    this._spellBg.setAlpha(alpha);
-    this._spellFill.setAlpha(alpha);
-    this._spellBorder.setAlpha(alpha);
-    this._spellIcon.setAlpha(alpha);
-    this._spellLabel.setAlpha(alpha);
-    this._surgeBg.setAlpha(alpha);
-    this._surgeFill.setAlpha(alpha);
-    this._surgeBorder.setAlpha(alpha);
-    this._surgeIcon.setAlpha(alpha);
-    this._potionText.setAlpha(alpha);
+    this._hudBgRight.setAlpha(visible ? 0.52 : 0);
+    // Donut ability buttons (unlocked after tutorial)
+    var donutAlpha = alpha;
+    [this._spellBg, this._spellFill, this._spellAccent, this._spellBorder, this._spellLabel, this._spellKey,
+     this._surgeBg, this._surgeFill, this._surgeAccent, this._surgeBorder, this._surgeLabel, this._surgeKey,
+    ].forEach(function (el) { el.setAlpha(donutAlpha); });
   },
 
   _unlockHUD: function () {
@@ -1512,17 +1527,14 @@ var UIScene = new Phaser.Class({
     var targets = [
       this._mmBg1, this._mmBg2, this._mmImage, this._mmCarl, this._mmStairs, this._mmBoss,
       this._killText, this._stairsText, this._closureText, this._viewsText,
-      this._spellBg, this._spellFill, this._spellBorder, this._spellIcon, this._spellLabel,
-      this._surgeBg, this._surgeFill, this._surgeBorder, this._surgeIcon,
-      this._potionText,
+      this._spellBg, this._spellFill, this._spellAccent, this._spellBorder, this._spellLabel, this._spellKey,
+      this._surgeBg, this._surgeFill, this._surgeAccent, this._surgeBorder, this._surgeLabel, this._surgeKey,
     ];
-    for (var i = 0; i < this._hotlistSlots.length; i++) {
-      var s = this._hotlistSlots[i];
-      targets.push(s.bg, s.border, s.key, s.item, s.count);
-    }
     // Set to 0 first (may already be 0 from _setLockedHUDVisible), then fade in
     targets.forEach(function (t) { t.setAlpha(0); });
+    this._hudBgRight.setAlpha(0);
     this.tweens.add({ targets: targets, alpha: 1, duration: 1200, ease: 'Sine.easeOut' });
+    this.tweens.add({ targets: this._hudBgRight, alpha: 0.52, duration: 1200, ease: 'Sine.easeOut' });
   },
 
   _showTV: function (roomName) {
@@ -1564,6 +1576,7 @@ var UIScene = new Phaser.Class({
 
     for (var i = 0; i < 10; i++) {
       var slot = this._hotlistSlots[i];
+      if (!slot) continue;
       var item = status.hotlist[i];
       if (item) {
         var abbr = _hotlistAbbr(item);

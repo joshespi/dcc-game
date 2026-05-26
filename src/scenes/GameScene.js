@@ -1,6 +1,18 @@
-var BOX_TIER_ORDER = { bronze: 0, silver: 1, gold: 2, platinum: 3, legendary: 4, celestial: 5 };
-var BOX_TIER_TINT  = { bronze: 0xcc7733, silver: 0xaacccc, gold: 0xffdd44, platinum: 0xaaddff, legendary: 0xff88ff, celestial: 0xffffff };
-var BOX_TIER_COLOR = { bronze: '#cc7733', silver: '#aacccc', gold: '#ffdd44', platinum: '#aaddff', legendary: '#ff88ff', celestial: '#ffffff' };
+var BOX_TIERS = {
+  bronze:    { order: 0, tint: 0xcc7733, color: '#cc7733' },
+  silver:    { order: 1, tint: 0xaacccc, color: '#aacccc' },
+  gold:      { order: 2, tint: 0xffdd44, color: '#ffdd44' },
+  platinum:  { order: 3, tint: 0xaaddff, color: '#aaddff' },
+  legendary: { order: 4, tint: 0xff88ff, color: '#ff88ff' },
+  celestial: { order: 5, tint: 0xffffff, color: '#ffffff' },
+};
+// Aliases kept for lookup convenience
+var BOX_TIER_ORDER = {}; var BOX_TIER_TINT = {}; var BOX_TIER_COLOR = {};
+Object.keys(BOX_TIERS).forEach(function (k) {
+  BOX_TIER_ORDER[k] = BOX_TIERS[k].order;
+  BOX_TIER_TINT[k]  = BOX_TIERS[k].tint;
+  BOX_TIER_COLOR[k] = BOX_TIERS[k].color;
+});
 
 var GameScene = new Phaser.Class({
   Extends: Phaser.Scene,
@@ -171,7 +183,8 @@ var GameScene = new Phaser.Class({
     this._unarmedKillDone      = this.status.kills > 0; // Bronze Weapon Box — one-time
     this._combatHintShown      = this.status.kills > 0; // one-time on first aggro
     this._higherLevelKillDone  = false; // Bronze Adventurer Box — one-time per floor
-    this._knockdownUntil      = 0; // ms timestamp — Carl stunned until then
+    this._knockdownUntil       = 0; // ms timestamp — Carl stunned until then
+    this._lastDonutReactTime   = 0;
     var curViews = this.status.views, curFollowers = this.status.followers;
     this._viewsMilestones     = [50000, 100000, 250000, 500000, 1000000, 2500000, 5000000, 10000000].filter(function (v) { return v > curViews; });
     this._followersMilestones = [1000, 5000, 10000, 50000, 100000].filter(function (v) { return v > curFollowers; });
@@ -1144,6 +1157,15 @@ var GameScene = new Phaser.Class({
     });
   },
 
+  _getEnemiesInRadius: function (cx, cy, r) {
+    var r2 = r * r;
+    return this.enemies.filter(function (e) {
+      if (e.isDead()) return false;
+      var dx = e.sprite.x - cx, dy = e.sprite.y - cy;
+      return dx * dx + dy * dy <= r2;
+    });
+  },
+
   _aggroRatPack: function (hitRat) {
     var R2 = 160 * 160;
     this.enemies.forEach(function (other) {
@@ -1509,13 +1531,9 @@ var GameScene = new Phaser.Class({
         duration: 400, onComplete: function () { g.destroy(); } });
       this._floatText(cx, cy - 20, 'SMOKE BOMB!', '#cccccc', 11);
       // Stun enemies in radius
-      this.enemies.forEach(function (e) {
-        if (e.isDead()) return;
-        var dx = e.sprite.x - cx, dy = e.sprite.y - cy;
-        if (dx * dx + dy * dy <= r * r) {
-          e._stunUntil = Date.now() + dur;
-          e._flashTint(0x888888, dur);
-        }
+      this._getEnemiesInRadius(cx, cy, r).forEach(function (e) {
+        e._stunUntil = Date.now() + dur;
+        e._flashTint(0x888888, dur);
       });
 
     } else if (item.effect === 'lure') {
@@ -1528,15 +1546,11 @@ var GameScene = new Phaser.Class({
       this._floatText(cx, cy - 20, 'LURE!', '#ffaaff', 11);
       // Pull aggro: redirect nearby enemies to lure point for duration
       var lureX = cx, lureY = cy;
-      this.enemies.forEach(function (e) {
-        if (e.isDead()) return;
-        var dx = e.sprite.x - lureX, dy = e.sprite.y - lureY;
-        if (dx * dx + dy * dy <= lr * lr) {
-          e._lureUntil = Date.now() + ldur;
-          e._lureX = lureX;
-          e._lureY = lureY;
-          e._aggroed = true;
-        }
+      this._getEnemiesInRadius(cx, cy, lr).forEach(function (e) {
+        e._lureUntil = Date.now() + ldur;
+        e._lureX = lureX;
+        e._lureY = lureY;
+        e._aggroed = true;
       });
       // Cancel lure after duration
       this.time.delayedCall(ldur, function () {
@@ -1563,14 +1577,10 @@ var GameScene = new Phaser.Class({
         duration: 500, onComplete: function () { bFlash.destroy(); } });
       this._floatText(cx, cy - 20, 'BLIGHT!', '#44ff44', 13);
       var bHits = 0;
-      this.enemies.forEach(function (e) {
-        if (e.isDead()) return;
-        var dx = e.sprite.x - cx, dy = e.sprite.y - cy;
-        if (dx * dx + dy * dy <= bR * bR) {
-          e.takeDamage(bDmg);
-          scene._floatText(e.sprite.x, e.sprite.y - 14, '-' + bDmg, '#44ff44', 11);
-          bHits++;
-        }
+      this._getEnemiesInRadius(cx, cy, bR).forEach(function (e) {
+        e.takeDamage(bDmg);
+        scene._floatText(e.sprite.x, e.sprite.y - 14, '-' + bDmg, '#44ff44', 11);
+        bHits++;
       });
       this.messages.push('SCROLL OF BLIGHT: ' + bHits + ' ENEMIES STRUCK FOR ' + bDmg + ' DAMAGE. INT FACTOR APPLIED.');
       _playPickup();

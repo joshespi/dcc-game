@@ -315,14 +315,13 @@ var EnemyFactory = (function () {
 
   GoblinEnemy.prototype.update = function (carlX, carlY, delta, missileGroup) {
     if (this._dead || !this.sprite.active) return;
-    if (this._stunUntil && Date.now() < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
+    var now = Date.now();
+    if (this._stunUntil && now < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
     if (this._everHit) this._updateHpBar();
 
     var dx = carlX - this.sprite.x, dy = carlY - this.sprite.y;
     var dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
-
-    var now = Date.now();
     if (this._retreating) {
       if (now < this._retreatUntil) {
         this.sprite.setVelocity(this._retreatVx, this._retreatVy);
@@ -349,13 +348,13 @@ var EnemyFactory = (function () {
 
   CrackCamelEnemy.prototype.update = function (carlX, carlY, delta, missileGroup) {
     if (this._dead || !this.sprite.active) return;
-    if (this._stunUntil && Date.now() < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
+    var now  = Date.now();
+    if (this._stunUntil && now < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
     if (this._everHit) this._updateHpBar();
 
     var dx   = carlX - this.sprite.x;
     var dy   = carlY - this.sprite.y;
     var dist = Math.sqrt(dx * dx + dy * dy);
-    var now  = Date.now();
 
     // Trigger charge when first aggroed and cooldown expired
     var wasAggroed = this._aggroed;
@@ -460,10 +459,9 @@ var EnemyFactory = (function () {
 
   RotStickerEnemy.prototype.update = function (carlX, carlY, delta) {
     if (this._dead || !this.sprite.active) return;
-    if (this._stunUntil && Date.now() < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
-    if (this._everHit) this._updateHpBar();
-
     var now = Date.now();
+    if (this._stunUntil && now < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
+    if (this._everHit) this._updateHpBar();
 
     if (this._attached) {
       // Ride Carl's position
@@ -573,12 +571,12 @@ var EnemyFactory = (function () {
 
   DangerDingoEnemy.prototype.update = function (carlX, carlY, delta, missileGroup) {
     if (this._dead || !this.sprite.active) return;
-    if (this._stunUntil && Date.now() < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
+    var now = Date.now();
+    if (this._stunUntil && now < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
     if (this._everHit) this._updateHpBar();
 
     var dx = carlX - this.sprite.x, dy = carlY - this.sprite.y;
     var dist = Math.sqrt(dx * dx + dy * dy);
-    var now = Date.now();
 
     if (dist < this.aggroRange && !this._aggroed) this._tryAggro();
 

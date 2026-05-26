@@ -38,9 +38,9 @@ var Donut = (function () {
 
   Donut.prototype.setMissileGroup = function (group) { this.missiles = group; };
 
-  var MISSILE_MP_COST = 10;  // two bolts × 5 MP each (canon)
-  var SURGE_CD        = 8000; // ms between Healing Surges
-  var SURGE_MP_COST   = 20;
+  var MISSILE_MP_COST = 4;
+  var SURGE_CD        = 8000;
+  var SURGE_MP_COST   = 8;
 
   Donut.prototype.activateSpell = function (carlX, carlY, facing) {
     var now = Date.now();
