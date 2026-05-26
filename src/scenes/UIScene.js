@@ -1303,6 +1303,7 @@ var UIScene = new Phaser.Class({
       this._srBannerRoom = srName;
       this.tweens.killTweensOf(this._srBanner);
       this.tweens.killTweensOf(this._srSubBanner);
+      if (!srName && this._tvOpen) this._dismissTV();
       if (srName) {
         var scene = this;
         this._srBanner.setText(srName).setAlpha(0);

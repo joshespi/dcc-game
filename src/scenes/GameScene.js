@@ -1812,7 +1812,7 @@ var GameScene = new Phaser.Class({
     if (isFirst) {
       // TV panel: show after entry message settles
       this.time.delayedCall(3500, function () {
-        scene.registry.set('showTV', entered.name);
+        if (scene._currentSafeRoom === entered) scene.registry.set('showTV', entered.name);
       });
       // First-ever safe room: Silver Adventurer Box reward
       if (!this.status.firstSafeRoomDone) {
