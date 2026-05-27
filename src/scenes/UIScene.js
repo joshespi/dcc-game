@@ -44,9 +44,10 @@ var UIScene = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function () {
     Phaser.Scene.call(this, { key: 'UIScene' });
-    this._messages = [];
-    this._msgTimer = 0;
-    this._currentMsg = null;
+    this._sysMessages  = [];
+    this._chatMessages = [];
+    this._sysTimer  = 0;
+    this._chatTimer = 0;
     this._invOpen    = false;
     this._invDirty   = true;
     this._shopOpen   = false;
@@ -234,11 +235,19 @@ var UIScene = new Phaser.Class({
     this._ABY = ABY; this._ABW = ABW; this._ABH = ABH;
 
 
-    // ── Message feed (bottom strip) ───────────────────────────────────────────
-    this._msgBg = this.add.rectangle(0, H - 24, W, 24, 0x000000, 0.7)
+    // ── Message feeds (two bottom strips) ─────────────────────────────────────
+    // Top strip: SYSTEM announcements (Borant Corp / achievements) — yellow/gold
+    this._sysBg = this.add.rectangle(0, H - 48, W, 24, 0x14110a, 0.78)
       .setOrigin(0, 0).setDepth(199);
-    this._msgText = this.add.text(W / 2, H - 12, '', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ddccff',
+    this._sysText = this.add.text(W / 2, H - 36, '', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#ffcc55',
+      align: 'center', wordWrap: { width: W - 20 }
+    }).setDepth(204).setOrigin(0.5);
+    // Bottom strip: CHARACTER chat + game feedback — cyan
+    this._chatBg = this.add.rectangle(0, H - 24, W, 24, 0x0a1014, 0.78)
+      .setOrigin(0, 0).setDepth(199);
+    this._chatText = this.add.text(W / 2, H - 12, '', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#aaddff',
       align: 'center', wordWrap: { width: W - 20 }
     }).setDepth(204).setOrigin(0.5);
 
@@ -460,9 +469,61 @@ var UIScene = new Phaser.Class({
       if (!msgs || scene._msgObj === msgs) return;
       scene._msgObj = msgs;
       var m;
-      while ((m = msgs.pop())) scene._messages.push(m);
-      msgs.onMessage(function (msg) { scene._messages.push(msg); });
+      while ((m = msgs.pop())) scene._routeMessage(m);
+      msgs.onMessage(function (msg) { scene._routeMessage(msg); });
     }, loop: true });
+  },
+
+  _routeMessage: function (msg) {
+    var t = msg.type;
+    if (t === 'achievement') {
+      this._sysMessages.push(msg);
+      this._showAchievementBadge(msg.text);
+    } else if (t === 'system') {
+      this._sysMessages.push(msg);
+    } else {
+      // character + feedback go to chat strip
+      this._chatMessages.push(msg);
+    }
+  },
+
+  _showAchievementBadge: function (text) {
+    var W = this.W, H = this.H;
+    var label = text.replace(/^ACHIEVEMENT[: ]*UNLOCKED?[: ]*/i, '')
+                    .replace(/^ACHIEVEMENT[: ]*/i, '');
+    // Strip trailing context after first '.' for the badge title (keep full text in log)
+    var firstDot = label.indexOf('.');
+    var title = firstDot > 0 ? label.substring(0, firstDot) : label;
+    title = title.replace(/^"|"$/g, '').trim();
+    if (title.length > 60) title = title.substring(0, 57) + '...';
+
+    var bg = this.add.rectangle(W / 2, H / 2 - 40, 480, 90, 0x111108, 0.92)
+      .setStrokeStyle(3, 0xffdd44, 0.95).setDepth(300).setAlpha(0);
+    var header = this.add.text(W / 2, H / 2 - 64, 'ACHIEVEMENT UNLOCKED', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#ffaa22',
+    }).setOrigin(0.5).setDepth(301).setAlpha(0);
+    var titleText = this.add.text(W / 2, H / 2 - 32, title, {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44',
+      stroke: '#000000', strokeThickness: 3, align: 'center',
+      wordWrap: { width: 460 }
+    }).setOrigin(0.5).setDepth(301).setAlpha(0);
+
+    var all = [bg, header, titleText];
+    this.tweens.add({
+      targets: all, alpha: 1, duration: 350, ease: 'Cubic.Out',
+      onComplete: function () {
+        bg.scene.tweens.add({
+          targets: bg, scaleX: 1.04, scaleY: 1.04, duration: 600,
+          yoyo: true, repeat: 1, ease: 'Sine.easeInOut'
+        });
+      }
+    });
+    this.time.delayedCall(3200, function () {
+      bg.scene.tweens.add({
+        targets: all, alpha: 0, duration: 500,
+        onComplete: function () { all.forEach(function (o) { o.destroy(); }); }
+      });
+    });
   },
 
   // ── Inventory panel construction ─────────────────────────────────────────
@@ -1474,20 +1535,23 @@ var UIScene = new Phaser.Class({
       }
     }
 
-    // ── Message feed ──────────────────────────────────────────────────────────
+    // ── Message feeds: system (top) + chat (bottom) ───────────────────────────
     var now = Date.now();
-    if (this._messages.length > 0 && now - this._msgTimer > 3200) {
-      this._currentMsg = this._messages.shift();
-      this._msgTimer = now;
-      this._msgText.setText(this._currentMsg.text).setAlpha(1);
-      this.tweens.killTweensOf(this._msgText);
-      this.tweens.add({
-        targets: this._msgText,
-        alpha: 0,
-        delay: 2800,
-        duration: 400,
-        ease: 'Linear',
-      });
+    if (this._sysMessages.length > 0 && now - this._sysTimer > 3200) {
+      var sm = this._sysMessages.shift();
+      this._sysTimer = now;
+      var sColor = sm.type === 'achievement' ? '#ffdd44' : '#ffcc55';
+      this._sysText.setText(sm.text).setColor(sColor).setAlpha(1);
+      this.tweens.killTweensOf(this._sysText);
+      this.tweens.add({ targets: this._sysText, alpha: 0, delay: 2800, duration: 400 });
+    }
+    if (this._chatMessages.length > 0 && now - this._chatTimer > 2400) {
+      var cm = this._chatMessages.shift();
+      this._chatTimer = now;
+      var cColor = cm.type === 'character' ? '#aaddff' : '#9999bb';
+      this._chatText.setText(cm.text).setColor(cColor).setAlpha(1);
+      this.tweens.killTweensOf(this._chatText);
+      this.tweens.add({ targets: this._chatText, alpha: 0, delay: 2000, duration: 400 });
     }
   },
 

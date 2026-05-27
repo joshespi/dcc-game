@@ -15,8 +15,15 @@ var MessageSystem = (function () {
     this._handlers = [];
   }
 
+  MessageSystem.classify = function (text) {
+    if (/^ACHIEVEMENT/.test(text)) return 'achievement';
+    if (text.indexOf('"') !== -1 && text.indexOf('—') !== -1) return 'character';
+    if (text.indexOf('BORANT') !== -1 || /MILESTONE|SACRIFICE|PROTOCOL|STAIRWELL|VIEWER/.test(text)) return 'system';
+    return 'feedback';
+  };
+
   MessageSystem.prototype.push = function (text, type) {
-    var msg = { text: text, type: type || 'system', ts: Date.now() };
+    var msg = { text: text, type: type || MessageSystem.classify(text), ts: Date.now() };
     this._queue.push(msg);
     this._history.push(msg);
     if (this._history.length > 200) this._history.shift();
