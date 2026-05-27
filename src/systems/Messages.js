@@ -18,8 +18,19 @@ var MessageSystem = (function () {
   MessageSystem.classify = function (text) {
     if (/^ACHIEVEMENT/.test(text)) return 'achievement';
     if (text.indexOf('"') !== -1 && text.indexOf('—') !== -1) return 'character';
+    if (/^(MORDECAI|TALLY|DONUT|THE HOARDER):\s/.test(text)) return 'character';
     if (text.indexOf('BORANT') !== -1 || /MILESTONE|SACRIFICE|PROTOCOL|STAIRWELL|VIEWER/.test(text)) return 'system';
     return 'feedback';
+  };
+
+  // Parse a character message into { speaker, dialogue }.
+  // Supports: '"text..." — SPEAKER'  and  'SPEAKER: "text..."'
+  MessageSystem.parseSpeaker = function (text) {
+    var m = text.match(/^([A-Z][A-Z ']+):\s*"?(.+?)"?$/);
+    if (m) return { speaker: m[1].trim(), dialogue: m[2] };
+    m = text.match(/^"(.+?)"\s*—\s*([A-Z][A-Z ']+)/);
+    if (m) return { speaker: m[2].trim(), dialogue: m[1] };
+    return null;
   };
 
   MessageSystem.prototype.push = function (text, type) {

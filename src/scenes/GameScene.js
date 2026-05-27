@@ -378,8 +378,73 @@ var GameScene = new Phaser.Class({
       });
     }
 
+    // ── Speech bubble subscription ────────────────────────────────────────────
+    var sceneRef = this;
+    this.messages.onMessage(function (msg) {
+      if (msg.type !== 'character') return;
+      var parsed = MessageSystem.parseSpeaker(msg.text);
+      if (!parsed) return;
+      sceneRef._showSpeechBubble(parsed.speaker, parsed.dialogue);
+    });
+
     // ── Fade in ──────────────────────────────────────────────────────────────
     this.cameras.main.fadeIn(500, 0, 0, 0);
+  },
+
+  _findSpeakerSprite: function (speaker) {
+    speaker = speaker.toUpperCase();
+    if (speaker === 'DONUT')       return this.donut ? this.donut.getSprite() : null;
+    if (speaker === 'MORDECAI')    return this._guildNPC || null;
+    if (speaker === 'THE HOARDER') return this._bossEnemy && !this._bossEnemy.isDead() ? this._bossEnemy.sprite : null;
+    if (speaker === 'TALLY') {
+      if (!this._bopcas || !this._bopcas.length) return null;
+      // Pick nearest Bopca to Carl
+      var cx = this.carl.x(), cy = this.carl.y();
+      var nearest = null, nd2 = Infinity;
+      for (var i = 0; i < this._bopcas.length; i++) {
+        var bp = this._bopcas[i];
+        var dx = bp.x - cx, dy = bp.y - cy;
+        var d2 = dx * dx + dy * dy;
+        if (d2 < nd2) { nd2 = d2; nearest = bp; }
+      }
+      return nearest ? nearest.sprite : null;
+    }
+    // Enemy speakers (DANGER DINGO, etc.) — find nearest matching enemy
+    for (var ei = 0; ei < this.enemies.length; ei++) {
+      var e = this.enemies[ei];
+      if (e.isDead()) continue;
+      if (e.typeName && e.typeName.toUpperCase() === speaker) return e.sprite;
+    }
+    return null;
+  },
+
+  _showSpeechBubble: function (speaker, dialogue) {
+    var spr = this._findSpeakerSprite(speaker);
+    if (!spr || !spr.active) return;
+
+    var bubble = this.add.text(spr.x, spr.y - 32, dialogue, {
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 3,
+      backgroundColor: 'rgba(0,0,0,0.65)', padding: { x: 6, y: 4 },
+      align: 'center', wordWrap: { width: 320, useAdvancedWrap: true }
+    }).setDepth(60).setOrigin(0.5, 1).setAlpha(0);
+
+    var startY = spr.y - 32;
+    this.tweens.add({ targets: bubble, alpha: 1, duration: 200 });
+    // Follow the sprite while alive
+    var follower = this.time.addEvent({
+      delay: 50, loop: true, callback: function () {
+        if (!bubble.active || !spr.active) { follower.remove(); return; }
+        bubble.x = spr.x;
+        bubble.y = spr.y - 32;
+      }
+    });
+    this.time.delayedCall(3200, function () {
+      bubble.scene.tweens.add({
+        targets: bubble, alpha: 0, y: bubble.y - 12, duration: 400,
+        onComplete: function () { follower.remove(); bubble.destroy(); }
+      });
+    });
   },
 
   // ── update ────────────────────────────────────────────────────────────────

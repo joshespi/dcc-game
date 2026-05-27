@@ -1,4 +1,4 @@
-var GAME_VERSION = '20260526-08';
+var GAME_VERSION = '20260526-10';
 [
   'src/sprites.js',
   'src/systems/Audio.js',
