@@ -322,7 +322,7 @@ var UIScene = new Phaser.Class({
       if (!scene._hudUnlocked) return;
       if (scene._skillsOpen) { scene._closeSkillsPanel(); return; }
       if (scene._invOpen) scene._toggleInventory();
-      if (scene._shopOpen) scene._closeShopPanel();
+      if (scene._shopOpen) scene.registry.set('shopOpen', false);
       scene._openSkillsPanel();
     });
 
@@ -431,11 +431,16 @@ var UIScene = new Phaser.Class({
       }
     });
     this.input.keyboard.on('keydown-ESC', function () {
-      if (scene._shopOpen) scene._closeShopPanel();
+      if (scene._shopOpen) scene.registry.set('shopOpen', false);
       if (scene._skillsOpen) scene._closeSkillsPanel();
     });
 
-    // Watch shopData registry for open/update/close
+    // Watch shopData registry for open/update/close.
+    // Clear prior listeners — UIScene relaunches on every game restart, and
+    // registry events live on the global emitter (no per-scene auto-cleanup).
+    // Without this, listeners stack and any state change recurses through them.
+    this.registry.events.removeAllListeners('changedata-shopOpen');
+    this.registry.events.removeAllListeners('changedata-shopData');
     this.registry.events.on('changedata-shopOpen', function (parent, val) {
       if (val) {
         var sd = scene.registry.get('shopData');
@@ -464,13 +469,14 @@ var UIScene = new Phaser.Class({
 
     // ── Subscribe to message feed ─────────────────────────────────────────────
     this._msgObj = null;
-    this.time.addEvent({ delay: 80, callback: function () {
+    var msgPoll = this.time.addEvent({ delay: 80, callback: function () {
       var msgs = scene.registry.get('messages');
-      if (!msgs || scene._msgObj === msgs) return;
+      if (!msgs) return;
       scene._msgObj = msgs;
       var m;
       while ((m = msgs.pop())) scene._routeMessage(m);
       msgs.onMessage(function (msg) { scene._routeMessage(msg); });
+      msgPoll.remove();
     }, loop: true });
   },
 
@@ -752,10 +758,10 @@ var UIScene = new Phaser.Class({
   },
 
   _closeShopPanel: function () {
+    if (!this._shopOpen) return;
     this._shopOpen = false;
     if (this._shopPanel) { this._shopPanel.destroy(); this._shopPanel = null; }
     this._shopGoldTxt = null; this._shopRowsContainer = null;
-    if (this._gameScene && this._gameScene._closeShop) this._gameScene._closeShop();
   },
 
   _openSkillsPanel: function () {

@@ -378,14 +378,79 @@ var GameScene = new Phaser.Class({
       });
     }
 
-    // ── Speech bubble subscription ────────────────────────────────────────────
-    var sceneRef = this;
-    this.messages.onMessage(function (msg) {
-      if (msg.type !== 'character') return;
-      var parsed = MessageSystem.parseSpeaker(msg.text);
-      if (!parsed) return;
-      sceneRef._showSpeechBubble(parsed.speaker, parsed.dialogue);
-    });
+    // ── Speech bubble subscription (idempotent across scene restarts) ─────────
+    this._activeBubbles = [];
+    this._bubbleBySpeaker = {};
+    if (!this.messages._gameSceneSubscribed) {
+      this.messages._gameSceneSubscribed = true;
+      var sceneRef = this;
+      this.messages.onMessage(function (msg) {
+        if (msg.type !== 'character') return;
+        var parsed = MessageSystem.parseSpeaker(msg.text);
+        if (!parsed) return;
+        // The scene reference can be stale if registered across restarts; route
+        // through the registry to always hit the live GameScene.
+        var live = sceneRef.scene && sceneRef.scene.isActive() ? sceneRef : null;
+        if (!live) return;
+        live._showSpeechBubble(parsed.speaker, parsed.dialogue);
+      });
+    }
+
+    // ── Dev/test debug hook — only when launched with ?debug=1 ────────────────
+    if (typeof window !== 'undefined' && /[?&]debug=1\b/.test(location.search)) {
+      var dcc = this;
+      window.dccDebug = {
+        scene: dcc,
+        state: function () {
+          return {
+            floor: dcc.currentFloor,
+            stairsUnlocked: dcc._stairsUnlocked,
+            bossAlive: !!(dcc._bossEnemy && !dcc._bossEnemy.isDead()),
+            inSafeRoom: dcc.isInSafeRoom(),
+            inGuildHall: dcc._inGuildHall,
+            hp: dcc.status.hp, maxHp: dcc.status.maxHp,
+            mp: dcc.status.mp, maxMp: dcc.status.maxMp,
+            level: dcc.status.level, kills: dcc.status.kills,
+            inventory: dcc.status.inventory.length,
+            claimedBoxes: dcc._claimedBoxes.length,
+            carl: { x: dcc.carl.x(), y: dcc.carl.y() },
+            mordecai: dcc._guildNPC ? { x: dcc._guildNPC.x, y: dcc._guildNPC.y } : null,
+            boss: dcc._bossRoom ? {
+              x: (dcc._bossRoom.x + dcc._bossRoom.w / 2) * 32 + 16,
+              y: (dcc._bossRoom.y + dcc._bossRoom.h / 2) * 32 + 16,
+              alive: !!(dcc._bossEnemy && !dcc._bossEnemy.isDead()),
+            } : null,
+            stairs: dcc.dungeonData.stairsTile ? {
+              x: dcc.dungeonData.stairsTile.x * 32 + 16,
+              y: dcc.dungeonData.stairsTile.y * 32 + 16,
+            } : null,
+            firstSafeRoom: dcc._safeRooms[0] ? {
+              x: (dcc._safeRooms[0].x + dcc._safeRooms[0].w / 2) * 32 + 16,
+              y: (dcc._safeRooms[0].y + dcc._safeRooms[0].h / 2) * 32 + 16,
+              name: dcc._safeRooms[0].name,
+            } : null,
+          };
+        },
+        teleport: function (x, y) {
+          dcc.carl.getSprite().setPosition(x, y);
+          dcc.carl.getSprite().body.reset(x, y);
+        },
+        teleportTo: function (target) {
+          var s = window.dccDebug.state();
+          var dest = s[target];
+          if (!dest || dest.x == null) return false;
+          window.dccDebug.teleport(dest.x, dest.y);
+          return true;
+        },
+        killBoss: function () {
+          if (!dcc._bossEnemy || dcc._bossEnemy.isDead()) return false;
+          dcc._bossEnemy.takeDamage(999999);
+          return true;
+        },
+        addItem: function (item) { dcc.status.addItem(item); dcc._markInvDirty(); },
+        forceTutorialDone: function () { dcc.status.tutorialComplete = true; dcc.registry.set('tutorialComplete', true); },
+      };
+    }
 
     // ── Fade in ──────────────────────────────────────────────────────────────
     this.cameras.main.fadeIn(500, 0, 0, 0);
@@ -393,27 +458,27 @@ var GameScene = new Phaser.Class({
 
   _findSpeakerSprite: function (speaker) {
     speaker = speaker.toUpperCase();
-    if (speaker === 'DONUT')       return this.donut ? this.donut.getSprite() : null;
-    if (speaker === 'MORDECAI')    return this._guildNPC || null;
-    if (speaker === 'THE HOARDER') return this._bossEnemy && !this._bossEnemy.isDead() ? this._bossEnemy.sprite : null;
-    if (speaker === 'TALLY') {
-      if (!this._bopcas || !this._bopcas.length) return null;
-      // Pick nearest Bopca to Carl
-      var cx = this.carl.x(), cy = this.carl.y();
-      var nearest = null, nd2 = Infinity;
-      for (var i = 0; i < this._bopcas.length; i++) {
-        var bp = this._bopcas[i];
-        var dx = bp.x - cx, dy = bp.y - cy;
-        var d2 = dx * dx + dy * dy;
-        if (d2 < nd2) { nd2 = d2; nearest = bp; }
-      }
-      return nearest ? nearest.sprite : null;
-    }
-    // Enemy speakers (DANGER DINGO, etc.) — find nearest matching enemy
+    var resolvers = this._speakerResolvers || (this._speakerResolvers = {
+      DONUT:         function (s) { return s.donut ? s.donut.getSprite() : null; },
+      MORDECAI:      function (s) { return s._guildNPC || null; },
+      'THE HOARDER': function (s) { return s._bossEnemy && !s._bossEnemy.isDead() ? s._bossEnemy.sprite : null; },
+      TALLY:         function (s) {
+        if (!s._bopcas || !s._bopcas.length) return null;
+        var cx = s.carl.x(), cy = s.carl.y();
+        var best = null, bd2 = Infinity;
+        for (var i = 0; i < s._bopcas.length; i++) {
+          var bp = s._bopcas[i];
+          var d2 = (bp.x - cx) * (bp.x - cx) + (bp.y - cy) * (bp.y - cy);
+          if (d2 < bd2) { bd2 = d2; best = bp; }
+        }
+        return best ? best.sprite : null;
+      },
+    });
+    var resolver = resolvers[speaker];
+    if (resolver) return resolver(this);
     for (var ei = 0; ei < this.enemies.length; ei++) {
       var e = this.enemies[ei];
-      if (e.isDead()) continue;
-      if (e.typeName && e.typeName.toUpperCase() === speaker) return e.sprite;
+      if (!e.isDead() && e.typeName && e.typeName.toUpperCase() === speaker) return e.sprite;
     }
     return null;
   },
@@ -422,29 +487,47 @@ var GameScene = new Phaser.Class({
     var spr = this._findSpeakerSprite(speaker);
     if (!spr || !spr.active) return;
 
+    var prev = this._bubbleBySpeaker[speaker];
+    if (prev) this._removeBubble(prev);
+
     var bubble = this.add.text(spr.x, spr.y - 32, dialogue, {
       fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 3,
       backgroundColor: 'rgba(0,0,0,0.65)', padding: { x: 6, y: 4 },
       align: 'center', wordWrap: { width: 320, useAdvancedWrap: true }
     }).setDepth(60).setOrigin(0.5, 1).setAlpha(0);
+    bubble._speaker  = speaker;
+    bubble._target   = spr;
+    bubble._expireAt = Date.now() + 3200;
 
-    var startY = spr.y - 32;
     this.tweens.add({ targets: bubble, alpha: 1, duration: 200 });
-    // Follow the sprite while alive
-    var follower = this.time.addEvent({
-      delay: 50, loop: true, callback: function () {
-        if (!bubble.active || !spr.active) { follower.remove(); return; }
-        bubble.x = spr.x;
-        bubble.y = spr.y - 32;
+    this._activeBubbles.push(bubble);
+    this._bubbleBySpeaker[speaker] = bubble;
+  },
+
+  _removeBubble: function (bubble) {
+    if (!bubble || !bubble.active) return;
+    if (this._bubbleBySpeaker[bubble._speaker] === bubble) {
+      delete this._bubbleBySpeaker[bubble._speaker];
+    }
+    var idx = this._activeBubbles.indexOf(bubble);
+    if (idx !== -1) this._activeBubbles.splice(idx, 1);
+    this.tweens.killTweensOf(bubble);
+    bubble.destroy();
+  },
+
+  _updateBubbles: function (nowMs) {
+    var bubbles = this._activeBubbles;
+    for (var i = bubbles.length - 1; i >= 0; i--) {
+      var b = bubbles[i];
+      var tgt = b._target;
+      if (!tgt || !tgt.active || nowMs >= b._expireAt) {
+        this._removeBubble(b);
+        continue;
       }
-    });
-    this.time.delayedCall(3200, function () {
-      bubble.scene.tweens.add({
-        targets: bubble, alpha: 0, y: bubble.y - 12, duration: 400,
-        onComplete: function () { follower.remove(); bubble.destroy(); }
-      });
-    });
+      b.x = tgt.x;
+      b.y = tgt.y - 32;
+    }
   },
 
   // ── update ────────────────────────────────────────────────────────────────
@@ -640,8 +723,8 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    var emArr = this.enemyMissiles.getChildren().slice();
-    for (var emi = 0, emN = emArr.length; emi < emN; emi++) {
+    var emArr = this.enemyMissiles.getChildren();
+    for (var emi = emArr.length - 1; emi >= 0; emi--) {
       var em = emArr[emi];
       if (!em || !em.active) continue;
       var emtx = Math.floor(em.x / 32), emty = Math.floor(em.y / 32);
@@ -683,10 +766,10 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    var mArr = this.missiles.getChildren().slice();
+    var mArr = this.missiles.getChildren();
     var enemiesArr = this.enemies;
     var mr = this._missileRect;
-    for (var mi = 0, mN = mArr.length; mi < mN; mi++) {
+    for (var mi = mArr.length - 1; mi >= 0; mi--) {
       var mm = mArr[mi];
       if (!mm || !mm.active) continue;
       mr.x = mm.x - 7; mr.y = mm.y - 7;
@@ -708,10 +791,10 @@ var GameScene = new Phaser.Class({
       }
     }
 
-    var orbArr = this.xpOrbs.getChildren().slice();
+    var orbArr = this.xpOrbs.getChildren();
     var carlX = this.carl.x(), carlY = this.carl.y();
     var orbSpd = 180 * (delta / 1000);
-    for (var oi = 0, oN = orbArr.length; oi < oN; oi++) {
+    for (var oi = orbArr.length - 1; oi >= 0; oi--) {
       var orb = orbArr[oi];
       if (!orb || !orb.active) continue;
       var age = nowMs - (orb._spawnTime || nowMs);
@@ -742,6 +825,7 @@ var GameScene = new Phaser.Class({
     this._updateFog(nowMs);
     this._updateProximityPrompt();
     this._updateCorpses();
+    if (this._activeBubbles && this._activeBubbles.length) this._updateBubbles(nowMs);
     this._checkSafeRoomEntry();
     this._checkGuildHallEntry();
     this._checkBossRoomEntry();
@@ -751,6 +835,10 @@ var GameScene = new Phaser.Class({
     this.tweens.killTweensOf(this._proximityPrompt);
     this._lootPromptPulsing = false;
     if (this._idleTVTimer) { this._idleTVTimer.remove(); this._idleTVTimer = null; }
+    if (this._activeBubbles) {
+      while (this._activeBubbles.length) this._removeBubble(this._activeBubbles[0]);
+    }
+    this._bubbleBySpeaker = {};
     if (EnemyFactory.resetSwarms) EnemyFactory.resetSwarms();
   },
 
@@ -846,7 +934,7 @@ var GameScene = new Phaser.Class({
     var startY = this.dungeonData.startPos.y / 32;
     var safeRooms = this._safeRooms || [];
     var bossRoom  = this._bossRoom;
-    var PAD = 2; // tiles of buffer around safe/boss rooms
+    var PAD = 2;
 
     function _inRoom(tx, ty, r, pad) {
       pad = pad || 0;
@@ -1808,7 +1896,7 @@ var GameScene = new Phaser.Class({
       if (nearest._isDrop) {
         label = '[E] pick up';
       } else if (inSafe) {
-        var totalBoxes = 1 + packedCount; // this box + claimed pack
+        var totalBoxes = 1 + packedCount;
         label = totalBoxes > 1 ? '[E] open ' + totalBoxes + ' boxes' : '[E] open box';
       } else {
         label = packedCount > 0
@@ -1890,7 +1978,6 @@ var GameScene = new Phaser.Class({
         this.status.firstSafeRoomDone = true;
         this.time.delayedCall(1200, function () {
           scene.messages.push('ACHIEVEMENT: "SANCTUARY." FIRST SAFE ROOM DISCOVERED. SILVER ADVENTURER\'S BOX ADDED TO PACK.');
-          scene._floatText(scene.carl.x(), scene.carl.y() - 36, 'SILVER BOX!', '#aacccc', 14);
           scene._claimedBoxes.push({ tier: 'silver', _contents: scene._lootTableForTier('silver') });
         });
       }
@@ -1916,10 +2003,6 @@ var GameScene = new Phaser.Class({
     }
     this._descend();
     return true;
-  },
-
-  getStairsStatus: function () {
-    return { unlocked: this._stairsUnlocked, bossAlive: !!(this._bossEnemy && !this._bossEnemy.isDead()) };
   },
 
   getFloorTimerStatus: function () {

@@ -15,21 +15,24 @@ var MessageSystem = (function () {
     this._handlers = [];
   }
 
+  // Shared speaker registry — used by classify, parseSpeaker, and GameScene resolver
+  MessageSystem.SPEAKERS = ['MORDECAI', 'TALLY', 'DONUT', 'THE HOARDER', 'DANGER DINGO'];
+  var _speakerAlt = MessageSystem.SPEAKERS.join('|');
+  var _attrRe   = new RegExp('^"(.+?)"\\s*[—-]\\s*(' + _speakerAlt + ')\\b');
+  var _prefixRe = new RegExp('^(' + _speakerAlt + '):\\s*"?(.+?)"?$');
+
   MessageSystem.classify = function (text) {
     if (/^ACHIEVEMENT/.test(text)) return 'achievement';
-    if (text.indexOf('"') !== -1 && text.indexOf('—') !== -1) return 'character';
-    if (/^(MORDECAI|TALLY|DONUT|THE HOARDER):\s/.test(text)) return 'character';
+    if (_attrRe.test(text) || _prefixRe.test(text)) return 'character';
     if (text.indexOf('BORANT') !== -1 || /MILESTONE|SACRIFICE|PROTOCOL|STAIRWELL|VIEWER/.test(text)) return 'system';
     return 'feedback';
   };
 
-  // Parse a character message into { speaker, dialogue }.
-  // Supports: '"text..." — SPEAKER'  and  'SPEAKER: "text..."'
   MessageSystem.parseSpeaker = function (text) {
-    var m = text.match(/^([A-Z][A-Z ']+):\s*"?(.+?)"?$/);
-    if (m) return { speaker: m[1].trim(), dialogue: m[2] };
-    m = text.match(/^"(.+?)"\s*—\s*([A-Z][A-Z ']+)/);
-    if (m) return { speaker: m[2].trim(), dialogue: m[1] };
+    var m = text.match(_prefixRe);
+    if (m) return { speaker: m[1], dialogue: m[2] };
+    m = text.match(_attrRe);
+    if (m) return { speaker: m[2], dialogue: m[1] };
     return null;
   };
 
@@ -117,11 +120,6 @@ var MessageSystem = (function () {
 
   MessageSystem.potion = function (amount) {
     return 'POTION CONSUMED. +' + amount + ' HP. DONUT JUDGES YOUR LIFE CHOICES.';
-  };
-
-  MessageSystem.stairsFound = function (floor) {
-    var nextName = MessageSystem.floorName(floor + 1);
-    return 'STAIRWELL UNSEALED. PRESS [E] NEAR EXIT TO DESCEND TO ' + nextName + '. THERE IS NO GOING BACK.';
   };
 
   MessageSystem.stairsLocked = function (floor) {
