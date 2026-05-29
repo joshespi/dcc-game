@@ -1223,12 +1223,7 @@ var UIScene = new Phaser.Class({
       this._invCompare.setAlpha(0);
     }
 
-    // Potion count for HUD
-    var pc = 0;
-    for (var pi = 0; pi < status.inventory.length; pi++) {
-      if (status.inventory[pi].type === 'potion') pc++;
-    }
-    this._potionCount = pc;
+    this._potionCount = status.countPotions();
   },
 
   // ── update ────────────────────────────────────────────────────────────────
@@ -1429,11 +1424,7 @@ var UIScene = new Phaser.Class({
 
     if (this._invDirty) {
       if (!this._invOpen) {
-        var pc = 0;
-        for (var pi = 0; pi < status.inventory.length; pi++) {
-          if (status.inventory[pi].type === 'potion') pc++;
-        }
-        this._potionCount = pc;
+        this._potionCount = status.countPotions();
       }
       var pots = this._potionCount;
       if (pots > 0) {
@@ -1708,9 +1699,6 @@ function _hotlistAbbr(item) {
   if (!item) return '';
   if (item.type === 'potion')      return 'POT';
   if (item.type === 'mana_potion') return 'MP';
-  if (item.type === 'weapon')   return item.name.substring(0, 4).toUpperCase();
-  if (item.type === 'armor')    return item.name.substring(0, 4).toUpperCase();
-  if (item.type === 'crafting') return item.name.substring(0, 4).toUpperCase();
   return item.name.substring(0, 4).toUpperCase();
 }
 

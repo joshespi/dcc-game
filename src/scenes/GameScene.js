@@ -6,13 +6,9 @@ var BOX_TIERS = {
   legendary: { order: 4, tint: 0xff88ff, color: '#ff88ff' },
   celestial: { order: 5, tint: 0xffffff, color: '#ffffff' },
 };
-// Aliases kept for lookup convenience
-var BOX_TIER_ORDER = {}; var BOX_TIER_TINT = {}; var BOX_TIER_COLOR = {};
-Object.keys(BOX_TIERS).forEach(function (k) {
-  BOX_TIER_ORDER[k] = BOX_TIERS[k].order;
-  BOX_TIER_TINT[k]  = BOX_TIERS[k].tint;
-  BOX_TIER_COLOR[k] = BOX_TIERS[k].color;
-});
+function _tierOrder(t) { return (BOX_TIERS[t] || BOX_TIERS.bronze).order; }
+function _tierTint(t)  { return (BOX_TIERS[t] || BOX_TIERS.bronze).tint; }
+function _tierColor(t) { return (BOX_TIERS[t] || BOX_TIERS.bronze).color; }
 
 var GameScene = new Phaser.Class({
   Extends: Phaser.Scene,
@@ -1158,7 +1154,7 @@ var GameScene = new Phaser.Class({
       var tx = this.carl.x() + (ci - Math.floor(this._claimedBoxes.length / 2)) * 24;
       var ty = this.carl.y() + 28;
       var ghost = this.add.image(tx, ty, 'loot_box').setDepth(5);
-      ghost.setTint(BOX_TIER_TINT[cd.tier] || 0xcc7733);
+      ghost.setTint(_tierTint(cd.tier));
       ghost._opened   = false;
       ghost._tier     = cd.tier;
       ghost._contents = cd._contents || scene._lootTableForTier(cd.tier);
@@ -1184,7 +1180,7 @@ var GameScene = new Phaser.Class({
     this._lootSequenceRunning = true;
 
     boxes.sort(function (a, b) {
-      return (BOX_TIER_ORDER[a._tier] || 0) - (BOX_TIER_ORDER[b._tier] || 0);
+      return _tierOrder(a._tier) - _tierOrder(b._tier);
     });
 
     // Overflow (lowest-tier) boxes beyond MAX_VISUAL: apply silently, no animation
@@ -1192,7 +1188,7 @@ var GameScene = new Phaser.Class({
     for (var s = 0; s < overflowCount; s++) {
       var sb = boxes[s];
       var tier = sb._tier || 'bronze';
-      var sContents = Array.isArray(sb._contents) ? sb._contents : (sb._contents ? [sb._contents] : []);
+      var sContents = _boxContents(sb);
       for (var sc = 0; sc < sContents.length; sc++) {
         var sItem = sContents[sc];
         scene.status.addItem(sItem);
@@ -1252,11 +1248,11 @@ var GameScene = new Phaser.Class({
       (function (box, idx) {
         scene.time.delayedCall(idx * popDelay, function () {
           var tier = box._tier || 'bronze';
-          var col = BOX_TIER_COLOR[tier] || '#cc7733';
-          var tint = BOX_TIER_TINT[tier] || 0xcc7733;
+          var col = _tierColor(tier);
+          var tint = _tierTint(tier);
 
           // Flash + shake box — scale based on tier
-          var rank = BOX_TIER_ORDER[tier] || 0;
+          var rank = _tierOrder(tier);
           var popScale = 1.4 + rank * 0.12;
           scene.tweens.add({
             targets: box,
@@ -1293,7 +1289,7 @@ var GameScene = new Phaser.Class({
           });
 
           // Items land at box position — _contents is always an array
-          var contents = Array.isArray(box._contents) ? box._contents : (box._contents ? [box._contents] : []);
+          var contents = _boxContents(box);
           for (var ci = 0; ci < contents.length; ci++) {
             var item = contents[ci];
             var equipResult = scene.status.addItem(item);
@@ -1440,7 +1436,7 @@ var GameScene = new Phaser.Class({
         var bx = other.sprite.x - enemy.sprite.x, by = other.sprite.y - enemy.sprite.y;
         if (bx * bx + by * by < CANN_R2) other._tryAggro();
       });
-      this.enemies = this.enemies.filter(function (e) { return !e.isDead(); });
+      this._pruneDeadEnemies();
       return;
     }
 
@@ -1514,7 +1510,7 @@ var GameScene = new Phaser.Class({
     if (lvlUp) lvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
 
     // Prune dead entries so the update forEach stays O(live enemies)
-    this.enemies = this.enemies.filter(function (e) { return !e.isDead(); });
+    this._pruneDeadEnemies();
   },
 
   _updateCorpses: function () {
@@ -2026,6 +2022,10 @@ var GameScene = new Phaser.Class({
     if (i !== -1) arr.splice(i, 1);
   },
 
+  _pruneDeadEnemies: function () {
+    this.enemies = this.enemies.filter(function (e) { return !e.isDead(); });
+  },
+
   _buildItemDetail: function (item) {
     if (item.type === 'weapon')   return '+' + item.damage + ' dmg';
     if (item.type === 'armor')    return '+' + item.defense + ' def';
@@ -2121,7 +2121,7 @@ var GameScene = new Phaser.Class({
 
   _spawnBossBox: function (tier, x, y) {
     var box = this.physics.add.staticImage(x, y, 'loot_box');
-    box.setDepth(5).setTint(BOX_TIER_TINT[tier]);
+    box.setDepth(5).setTint(_tierTint(tier));
     box._opened = false; box._tier = tier;
     box._contents = this._lootTableForTier(tier);
     box._isBossBox = true;
@@ -2158,7 +2158,7 @@ var GameScene = new Phaser.Class({
     ];
     var uniqueDrop = hoarderPool[Math.floor(Math.random() * hoarderPool.length)];
     var ubox = scene.physics.add.staticImage(enemy.sprite.x - 20, enemy.sprite.y - 16, 'loot_box');
-    ubox.setDepth(5).setTint(BOX_TIER_TINT.legendary);
+    ubox.setDepth(5).setTint(_tierTint('legendary'));
     ubox._opened = false; ubox._tier = 'legendary'; ubox._contents = uniqueDrop; ubox._isDrop = true;
     scene.lootBoxes.push(ubox);
     scene.messages.push('THE HOARDER\'S COLLECTION SCATTERS. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!');
@@ -2181,7 +2181,7 @@ var GameScene = new Phaser.Class({
     });
     if (bossLvlUp) bossLvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
     // Remove dead boss from enemies array
-    this.enemies = this.enemies.filter(function (e) { return !e.isDead(); });
+    this._pruneDeadEnemies();
     // Start creep wave — adjacent mobs infiltrate every 45s
     this._startCreepWaves();
   },
@@ -2513,6 +2513,12 @@ var GameScene = new Phaser.Class({
 function _dist2(ax, ay, bx, by) {
   var dx = ax - bx, dy = ay - by;
   return dx * dx + dy * dy;
+}
+
+// Loot box _contents may be a single item, an array, or absent — always yield an array
+function _boxContents(box) {
+  if (Array.isArray(box._contents)) return box._contents;
+  return box._contents ? [box._contents] : [];
 }
 
 // ── Floor decoration painter ──────────────────────────────────────────────────

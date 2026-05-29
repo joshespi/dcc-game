@@ -60,6 +60,13 @@ var EnemyFactory = (function () {
     this.scene.time.delayedCall(ms, function () { if (spr && spr.active) spr.clearTint(); });
   };
 
+  Enemy.prototype._revealHpBar = function () {
+    if (this._everHit) return;
+    this._everHit = true;
+    this._hpBarBg.setVisible(true);
+    this._hpBarFill.setVisible(true);
+  };
+
   Enemy.prototype._tryAggro = function () {
     if (this._aggroed) return;
     this._aggroed = true;
@@ -125,13 +132,7 @@ var EnemyFactory = (function () {
     this.hp -= amount;
 
     this._flashTint(0xffffff, 100);
-
-    // Reveal HP bar on first hit
-    if (!this._everHit) {
-      this._everHit = true;
-      this._hpBarBg.setVisible(true);
-      this._hpBarFill.setVisible(true);
-    }
+    this._revealHpBar();
     this._updateHpBar();
 
     if (this.hp <= 0) this._die();
@@ -465,11 +466,7 @@ var EnemyFactory = (function () {
     if (Math.random() < this._blockChance) {
       amount = 1;
       this._flashTint(0x4488ff, 100);
-      if (!this._everHit) {
-        this._everHit = true;
-        this._hpBarBg.setVisible(true);
-        this._hpBarFill.setVisible(true);
-      }
+      this._revealHpBar();
       this.hp -= amount;
       this._updateHpBar();
       _playClank(this.scene);

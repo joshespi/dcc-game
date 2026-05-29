@@ -287,6 +287,14 @@ var CrawlerStatus = (function () {
     return this.inventory.some(function (i) { return i.type === 'potion'; });
   };
 
+  CrawlerStatus.prototype.countPotions = function () {
+    var n = 0;
+    for (var i = 0; i < this.inventory.length; i++) {
+      if (this.inventory[i].type === 'potion') n++;
+    }
+    return n;
+  };
+
   CrawlerStatus.prototype.countCraftingMat = function (name) {
     var n = 0;
     for (var i = 0; i < this.inventory.length; i++) {
