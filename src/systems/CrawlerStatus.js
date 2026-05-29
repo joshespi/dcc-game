@@ -45,7 +45,6 @@ var CrawlerStatus = (function () {
     this.hasGoblinPass   = false;
     // Temporary scroll/buff effects — set to 0 by default, non-zero while active
     this._swiftnessUntil   = 0;
-    this._ironSkinUntil    = 0;
     this._ironSkinDefense  = 0;
     this._dexBuffUntil     = 0;
   }
@@ -111,8 +110,9 @@ var CrawlerStatus = (function () {
   CrawlerStatus.prototype.addFollowers = function (n) { this.followers += n; };
   CrawlerStatus.prototype.addFavorites = function (n) { this.favorites += n; };
 
-  CrawlerStatus.prototype.effectiveDex = function () {
-    var bonus = (this._dexBuffUntil && Date.now() < this._dexBuffUntil) ? 1 : 0;
+  CrawlerStatus.prototype.effectiveDex = function (now) {
+    now = now || Date.now();
+    var bonus = (this._dexBuffUntil && now < this._dexBuffUntil) ? 1 : 0;
     return this.stats.dex + bonus;
   };
 
@@ -367,8 +367,8 @@ var CrawlerStatus = (function () {
     return totalDmg;
   };
 
-  CrawlerStatus.prototype.hasDebuff = function (type) {
-    var now = Date.now();
+  CrawlerStatus.prototype.hasDebuff = function (type, now) {
+    now = now || Date.now();
     for (var i = 0; i < this.debuffs.length; i++) {
       if (this.debuffs[i].type === type && this.debuffs[i].expiresAt > now) return true;
     }
@@ -449,7 +449,6 @@ var CrawlerStatus = (function () {
     s.hasGoblinPass      = data.hasGoblinPass   || false;
     // Scroll buffs don't persist across save/load (they'd have expired anyway)
     s._swiftnessUntil   = 0;
-    s._ironSkinUntil    = 0;
     s._ironSkinDefense  = 0;
     s._dexBuffUntil     = 0;
     s.equippedWeapon = data.equippedWeaponIdx != null ? s.inventory[data.equippedWeaponIdx] : null;

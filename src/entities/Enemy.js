@@ -855,7 +855,6 @@ var EnemyFactory = (function () {
     // Pupa stage — immobile, countdown, then hatch
     if (this._inPupa) {
       this.sprite.setVelocity(0, 0);
-      var secsLeft = Math.ceil((this._pupaStartedAt + GRUB_PUPA_MS - now) / 1000);
       var flash = now % 600 < 250;
       this.sprite.setTint(flash ? 0xff4400 : 0xffcc00);
       if (now >= this._pupaStartedAt + GRUB_PUPA_MS) {

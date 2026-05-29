@@ -60,9 +60,9 @@ var Carl = (function () {
 
     // ── Movement ──────────────────────────────────────────────────────────
     var vx = 0, vy = 0;
-    var spd = SPEED + this.status.effectiveDex() * 1.5;
-    if (this.status.hasDebuff(DEBUFF_SEPTIC)) spd *= 0.72;
-    if (this.status._swiftnessUntil && Date.now() < this.status._swiftnessUntil) spd *= 2.0;
+    var spd = SPEED + this.status.effectiveDex(now) * 1.5;
+    if (this.status.hasDebuff(DEBUFF_SEPTIC, now)) spd *= 0.72;
+    if (this.status._swiftnessUntil && now < this.status._swiftnessUntil) spd *= 2.0;
 
     if (keys.left.isDown  || cur.left.isDown)  { vx = -spd; this.facing = 'left'; }
     if (keys.right.isDown || cur.right.isDown) { vx =  spd; this.facing = 'right'; }

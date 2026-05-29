@@ -10,6 +10,43 @@ function _tierOrder(t) { return (BOX_TIERS[t] || BOX_TIERS.bronze).order; }
 function _tierTint(t)  { return (BOX_TIERS[t] || BOX_TIERS.bronze).tint; }
 function _tierColor(t) { return (BOX_TIERS[t] || BOX_TIERS.bronze).color; }
 
+// Per-boss behavior + flavor, keyed by _bossType. slamFn/secondaryFn are GameScene
+// method names dispatched dynamically; dropPool/dropMsg/taunt depend on runtime state.
+var BOSS_FLAVOR = {
+  hoarder: {
+    label: 'THE HOARDER',
+    slamFn: '_bossGroundSlam', secondaryFn: '_bossThrowJunk',
+    intro: 'BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: THE HOARDER. BORANT CORPORATION THANKS YOU FOR YOUR SACRIFICE.',
+    introDelayed: '"I WAS HERE FIRST," IT SCREAMS. "ALL OF THIS IS MINE."',
+    phase2: 'THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.',
+    phase2Delayed: '"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER',
+    taunt: function (phase) { return MessageSystem.bossHoarderTaunt(phase); },
+    dropPool: function (floor) { return [
+      { type: 'weapon', name: "The Hoarder's Cleaver", damage: 15 + floor * 2, sprite: 'weapon' },
+      { type: 'weapon', name: "The Hoarder's Shank",   damage: 12 + floor * 2, sprite: 'weapon' },
+      { type: 'armor',  name: "The Hoarder's Coat",    defense: 8 + floor,     sprite: 'armor'  },
+      { type: 'armor',  name: "The Hoarder's Scraps",  defense: 6 + floor,     sprite: 'armor'  },
+    ]; },
+    dropMsg: function (name) { return 'THE HOARDER\'S COLLECTION SCATTERS. [E] TO CLAIM: ' + name.toUpperCase() + '!'; },
+  },
+  krakaren: {
+    label: 'KRAKAREN CLONE',
+    slamFn: '_bossKrakarenSlam', secondaryFn: '_bossKrakarenMist',
+    intro: 'BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: KRAKAREN CLONE. BORANT NOTES: THIS IS NOT THE KRAKAREN. THIS IS A KRAKAREN. THERE ARE MORE.',
+    introDelayed: 'DOZENS OF MOUTHS SCREAM FROM EVERY TENTACLE. THE SOUND IS SOLID. DONUT COVERS HER EARS.',
+    phase2: 'KRAKAREN CLONE SEETHES. ADDITIONAL TENTACLES EMERGE FROM THE FLOOR. MOUTH-COUNT DOUBLES.',
+    phase2Delayed: '"MORE. MORE. MORE." — EVERY MOUTH, SIMULTANEOUSLY.',
+    taunt: function (phase) { return MessageSystem.bossKrakarenTaunt(phase); },
+    dropPool: function (floor) { return [
+      { type: 'weapon', name: "Krakaren's Severed Tentacle", damage: 18 + floor * 2, sprite: 'weapon' },
+      { type: 'armor',  name: "Krakaren Mouth-Leather Coat", defense: 10 + floor,    sprite: 'armor'  },
+      { type: 'armor',  name: "Screaming Carapace",          defense: 8  + floor,    sprite: 'armor'  },
+    ]; },
+    dropMsg: function (name) { return 'KRAKAREN CLONE DISSOLVES. ITS MOUTHS STILL SCREAM FOR 11 SECONDS AFTERWARD. [E] TO CLAIM: ' + name.toUpperCase() + '!'; },
+  },
+};
+function _bossFlavor(type) { return BOSS_FLAVOR[type] || BOSS_FLAVOR.hoarder; }
+
 var GameScene = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function () { Phaser.Scene.call(this, { key: 'GameScene' }); },
@@ -486,8 +523,6 @@ var GameScene = new Phaser.Class({
     var resolvers = this._speakerResolvers || (this._speakerResolvers = {
       DONUT:         function (s) { return s.donut ? s.donut.getSprite() : null; },
       MORDECAI:      function (s) { return s._guildNPC || null; },
-      'THE HOARDER':     function (s) { return s._bossEnemy && s._bossEnemy._bossType === 'hoarder'   && !s._bossEnemy.isDead() ? s._bossEnemy.sprite : null; },
-      'KRAKAREN CLONE':  function (s) { return s._bossEnemy && s._bossEnemy._bossType === 'krakaren'  && !s._bossEnemy.isDead() ? s._bossEnemy.sprite : null; },
       TALLY:         function (s) {
         if (!s._bopcas || !s._bopcas.length) return null;
         var cx = s.carl.x(), cy = s.carl.y();
@@ -611,21 +646,23 @@ var GameScene = new Phaser.Class({
       this._handleShopBuy(shopBuyIdx);
     }
 
-    // Track Taint expiry — notify when it wears off
-    var taintNow = this.status.hasDebuff(DEBUFF_TAINT);
-    if (this._taintWasActive && !taintNow) {
-      this._floatText(this.carl.x(), this.carl.y() - 30, 'TAINT CLEARED', '#44ff88', 11);
-      this.messages.push('THE TAINT HAS WORN OFF. HEALING RESTORED. DONUT DECLINES TO COMMENT ON THE SMELL.');
+    // Track Taint expiry — notify when it wears off. Skip the scan entirely when
+    // no debuffs are present and none were last frame (the common case, all floors).
+    if (this._taintWasActive || this.status.debuffs.length > 0) {
+      var taintNow = this.status.hasDebuff(DEBUFF_TAINT, nowMs);
+      if (this._taintWasActive && !taintNow) {
+        this._floatText(this.carl.x(), this.carl.y() - 30, 'TAINT CLEARED', '#44ff88', 11);
+        this.messages.push('THE TAINT HAS WORN OFF. HEALING RESTORED. DONUT DECLINES TO COMMENT ON THE SMELL.');
+      }
+      this._taintWasActive = taintNow;
     }
-    this._taintWasActive = taintNow;
 
     // Passive follower decay on Floor 2+ — audience loses interest during idle stretches
     if (this.currentFloor >= 2) {
-      var now2 = Date.now();
-      if (!this._followerDecayTick) this._followerDecayTick = now2;
-      if (now2 - this._followerDecayTick > 20000) {
-        this._followerDecayTick = now2;
-        var idleSecs = (now2 - (this._lastKillTime || now2)) / 1000;
+      if (!this._followerDecayTick) this._followerDecayTick = nowMs;
+      if (nowMs - this._followerDecayTick > 20000) {
+        this._followerDecayTick = nowMs;
+        var idleSecs = (nowMs - (this._lastKillTime || nowMs)) / 1000;
         if (idleSecs > 30 && this.status.followers > 100) {
           var lost = Math.ceil(this.status.followers * 0.003);
           this.status.followers = Math.max(100, this.status.followers - lost);
@@ -686,6 +723,7 @@ var GameScene = new Phaser.Class({
     var scene = this;
     var _eTiles = this.dungeonData.tiles;
     var _carlX = this.carl.x(), _carlY = this.carl.y();
+    var _hasGoblinPass = this.status.hasGoblinPass;
     var enArr = this.enemies;
     for (var enI = 0, enN = enArr.length; enI < enN; enI++) {
       var e = enArr[enI];
@@ -700,7 +738,7 @@ var GameScene = new Phaser.Class({
       }
       if (_carlInSafe) e._aggroed = false;
       // Goblin Pass: goblins + fairies non-hostile to pass holders
-      if (this.status.hasGoblinPass && e._goblinFaction) e._aggroed = false;
+      if (_hasGoblinPass && e._goblinFaction) e._aggroed = false;
 
       e.update(_carlX, _carlY, delta, this.enemyMissiles, this.corpses);
 
@@ -747,17 +785,9 @@ var GameScene = new Phaser.Class({
           this.cameras.main.shake(400, 0.014);
           _playPhaseTransition();
           this._floatText(e.sprite.x, e.sprite.y - 24, 'PHASE 2!', '#ff4400', 14);
-          if (e._bossType === 'krakaren') {
-            this.messages.push('KRAKAREN CLONE SEETHES. ADDITIONAL TENTACLES EMERGE FROM THE FLOOR. MOUTH-COUNT DOUBLES.');
-            this.time.delayedCall(600, function () {
-              scene.messages.push('"MORE. MORE. MORE." — EVERY MOUTH, SIMULTANEOUSLY.');
-            });
-          } else {
-            this.messages.push('THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.');
-            this.time.delayedCall(600, function () {
-              scene.messages.push('"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER');
-            });
-          }
+          var p2flavor = _bossFlavor(e._bossType);
+          this.messages.push(p2flavor.phase2);
+          this.time.delayedCall(600, function () { scene.messages.push(p2flavor.phase2Delayed); });
           var addTypes = EnemyFactory.typesForFloor(this.currentFloor);
           for (var si = 0; si < 3; si++) {
             var ang = (si / 3) * Math.PI * 2;
@@ -771,19 +801,11 @@ var GameScene = new Phaser.Class({
         }
         if (e._aggroed && nowMs >= e._slamCd) {
           e._slamCd = nowMs + e._slamCdMs;
-          if (e._bossType === 'krakaren') {
-            this._bossKrakarenSlam(e);
-          } else {
-            this._bossGroundSlam(e);
-          }
+          this[_bossFlavor(e._bossType).slamFn](e);
         }
         if (e._phase === 2 && e._aggroed && nowMs >= e._throwCd) {
           e._throwCd = nowMs + e._throwCdMs;
-          if (e._bossType === 'krakaren') {
-            this._bossKrakarenMist(e);
-          } else {
-            this._bossThrowJunk(e);
-          }
+          this[_bossFlavor(e._bossType).secondaryFn](e);
         }
       }
     }
@@ -952,10 +974,7 @@ var GameScene = new Phaser.Class({
     var scene = this;
     var enemy = EnemyFactory.create(this, type, x, y, floorNum);
     this.physics.add.collider(enemy.sprite, this.wallLayer);
-    if (enemy instanceof EnemyFactory.FairyEnemy)         enemy.setMissileGroup(this.enemyMissiles);
-    if (enemy instanceof EnemyFactory.BadLlamaEnemy)      enemy.setMissileGroup(this.enemyMissiles);
-    if (enemy instanceof EnemyFactory.ClurichaunnEnemy)   enemy.setMissileGroup(this.enemyMissiles);
-    if (enemy instanceof EnemyFactory.BrindledVespaEnemy) enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy.setMissileGroup) enemy.setMissileGroup(this.enemyMissiles);
     if (enemy instanceof EnemyFactory.RotStickerEnemy) {
       enemy.setKnockdownCallback(function (dmg) { scene._applyRotStickerBlast(dmg); });
     }
@@ -1196,6 +1215,13 @@ var GameScene = new Phaser.Class({
     if (!pool) return null;
     var drop = pool[Math.floor(Math.random() * pool.length)];
     return { type: 'crafting', name: drop.name, quality: drop.quality };
+  },
+
+  // Floor 2+ gold yield per enemy. base = floor of the random gold roll; bonus =
+  // optional guaranteed extra drops (e.g. Laminak's MLM brochures). Unlisted = base 2.
+  _enemyGold: {
+    'Danger Dingo':  { base: 15 },
+    'Laminak Elite': { base: 25, bonus: { type: 'crafting', name: 'MLM Brochure', quality: 'common', count: 5 } },
   },
 
   _randomCraftingDrop: function () {
@@ -1610,13 +1636,12 @@ var GameScene = new Phaser.Class({
       if (mat) corpseItems.push(mat);
     }
     if (scene.currentFloor >= 2) {
-      var goldBase = enemy.typeName === 'Danger Dingo' ? 15 : enemy.typeName === 'Laminak Elite' ? 25 : 2;
-      var goldAmt = goldBase + Math.floor(Math.random() * 8) + Math.floor(enemy.xpValue / 5);
+      var goldDef = scene._enemyGold[enemy.typeName] || { base: 2 };
+      var goldAmt = goldDef.base + Math.floor(Math.random() * 8) + Math.floor(enemy.xpValue / 5);
       corpseItems.push({ type: 'gold', name: goldAmt + ' Gold Coins', amount: goldAmt });
-      // Laminak: also drop MLM brochures (alchemy-only corpse per lore)
-      if (enemy.typeName === 'Laminak Elite') {
-        for (var bi = 0; bi < 5; bi++) {
-          corpseItems.push({ type: 'crafting', name: 'MLM Brochure', quality: 'common' });
+      if (goldDef.bonus) {
+        for (var bi = 0; bi < goldDef.bonus.count; bi++) {
+          corpseItems.push({ type: goldDef.bonus.type, name: goldDef.bonus.name, quality: goldDef.bonus.quality });
         }
       }
     }
@@ -1963,13 +1988,11 @@ var GameScene = new Phaser.Class({
 
     } else if (item.effect === 'scroll_iron') {
       var ironDur = 15000;
-      this.status._ironSkinUntil   = Date.now() + ironDur;
       this.status._ironSkinDefense = 10;
       this._floatText(cx, cy - 20, 'IRON SKIN! +10 DEF', '#88ccff', 13);
       this.messages.push('SCROLL OF IRON SKIN CONSUMED. +10 DEFENSE FOR 15 SECONDS. YOU FEEL HARDER TO KILL. YOU ARE SLIGHTLY HARDER TO KILL.');
       var scene3 = this;
       this.time.delayedCall(ironDur, function () {
-        scene3.status._ironSkinUntil   = 0;
         scene3.status._ironSkinDefense = 0;
         scene3._floatText(scene3.carl.x(), scene3.carl.y() - 14, 'iron skin faded', '#448899', 9);
       });
@@ -2310,18 +2333,9 @@ var GameScene = new Phaser.Class({
     this.wallLayer.putTileAt(DungeonGenerator.WALL, this._bossRoom.doorX, this._bossRoom.doorY);
     this.cameras.main.shake(500, 0.018);
     var scene = this;
-    var bossType = this._bossEnemy ? this._bossEnemy._bossType : 'hoarder';
-    if (bossType === 'krakaren') {
-      this.messages.push('BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: KRAKAREN CLONE. BORANT NOTES: THIS IS NOT THE KRAKAREN. THIS IS A KRAKAREN. THERE ARE MORE.');
-      this.time.delayedCall(1200, function () {
-        scene.messages.push('DOZENS OF MOUTHS SCREAM FROM EVERY TENTACLE. THE SOUND IS SOLID. DONUT COVERS HER EARS.');
-      });
-    } else {
-      this.messages.push('BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: THE HOARDER. BORANT CORPORATION THANKS YOU FOR YOUR SACRIFICE.');
-      this.time.delayedCall(1200, function () {
-        scene.messages.push('"I WAS HERE FIRST," IT SCREAMS. "ALL OF THIS IS MINE."');
-      });
-    }
+    var flavor = _bossFlavor(this._bossEnemy ? this._bossEnemy._bossType : 'hoarder');
+    this.messages.push(flavor.intro);
+    this.time.delayedCall(1200, function () { scene.messages.push(flavor.introDelayed); });
     this.time.delayedCall(2400, function () {
       scene.messages.push(MessageSystem.donutReaction('many_enemies'));
     });
@@ -2332,9 +2346,7 @@ var GameScene = new Phaser.Class({
       callback: function () {
         var b = scene._bossEnemy;
         if (b && !b.isDead()) {
-          scene.messages.push(b._bossType === 'krakaren'
-            ? MessageSystem.bossKrakarenTaunt(b._phase)
-            : MessageSystem.bossHoarderTaunt(b._phase));
+          scene.messages.push(_bossFlavor(b._bossType).taunt(b._phase));
         }
       },
     });
@@ -2371,26 +2383,14 @@ var GameScene = new Phaser.Class({
     var bossLvlUp = this.status.addXP(enemy.xpValue);
 
     // Always drop a unique boss item — instant pickup, legendary tier
-    var bossType = enemy._bossType || 'hoarder';
-    var bossDropPool = bossType === 'krakaren' ? [
-      { type: 'weapon', name: "Krakaren's Severed Tentacle", damage: 18 + scene.currentFloor * 2, sprite: 'weapon' },
-      { type: 'armor',  name: "Krakaren Mouth-Leather Coat", defense: 10 + scene.currentFloor,     sprite: 'armor'  },
-      { type: 'armor',  name: "Screaming Carapace",          defense: 8  + scene.currentFloor,     sprite: 'armor'  },
-    ] : [
-      { type: 'weapon', name: "The Hoarder's Cleaver", damage: 15 + scene.currentFloor * 2, sprite: 'weapon' },
-      { type: 'weapon', name: "The Hoarder's Shank",   damage: 12 + scene.currentFloor * 2, sprite: 'weapon' },
-      { type: 'armor',  name: "The Hoarder's Coat",    defense: 8 + scene.currentFloor,      sprite: 'armor'  },
-      { type: 'armor',  name: "The Hoarder's Scraps",  defense: 6 + scene.currentFloor,      sprite: 'armor'  },
-    ];
+    var bflavor = _bossFlavor(enemy._bossType);
+    var bossDropPool = bflavor.dropPool(scene.currentFloor);
     var uniqueDrop = bossDropPool[Math.floor(Math.random() * bossDropPool.length)];
     var ubox = scene.physics.add.staticImage(enemy.sprite.x - 20, enemy.sprite.y - 16, 'loot_box');
     ubox.setDepth(5).setTint(_tierTint('legendary'));
     ubox._opened = false; ubox._tier = 'legendary'; ubox._contents = uniqueDrop; ubox._isDrop = true;
     scene.lootBoxes.push(ubox);
-    var dropMsg = bossType === 'krakaren'
-      ? 'KRAKAREN CLONE DISSOLVES. ITS MOUTHS STILL SCREAM FOR 11 SECONDS AFTERWARD. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!'
-      : 'THE HOARDER\'S COLLECTION SCATTERS. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!';
-    scene.messages.push(dropMsg);
+    scene.messages.push(bflavor.dropMsg(uniqueDrop.name));
 
     // Survivor Box: <5% HP = Silver Survivor's Box, <10% HP = Bronze Survivor's Box (lore-accurate)
     var hpPct = this.status.hpPercent();
