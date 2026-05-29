@@ -48,6 +48,11 @@ var IntroScene = new Phaser.Class({
       gr.fillStyle(0x000000, 0.15);
       gr.fillRect(0, y, W, 1);
     }
+
+    // Version display
+    this.add.text(W - 6, H - 6, 'v' + GAME_VERSION.split('+')[0], {
+      fontFamily: 'monospace', fontSize: '9px', color: '#555566', align: 'right'
+    }).setOrigin(1, 1).setDepth(101);
   },
 
   _showMainSequence: function (W, H) {
