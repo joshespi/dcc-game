@@ -316,6 +316,7 @@ var EnemyFactory = (function () {
   function FairyEnemy(scene, x, y, scaledDef) {
     Enemy.call(this, scene, x, y, scaledDef || DEFS.fairy);
     this._missileGroup = null;
+    this._goblinFaction = true;  // Goblin Pass: non-hostile to pass holders
   }
   FairyEnemy.prototype = Object.create(Enemy.prototype);
   FairyEnemy.prototype.constructor = FairyEnemy;
@@ -358,6 +359,7 @@ var EnemyFactory = (function () {
     this._retreatUntil = 0;
     this._retreatVx    = 0;
     this._retreatVy    = 0;
+    this._goblinFaction = true;  // Goblin Pass: non-hostile to pass holders
   }
   GoblinEnemy.prototype = Object.create(Enemy.prototype);
   GoblinEnemy.prototype.constructor = GoblinEnemy;
@@ -741,6 +743,7 @@ var EnemyFactory = (function () {
     this._chargeCdMs   = 4000;
     this._baseSpeed    = this.speed;
     this._barkCd       = 0;
+    this._goblinFaction = true;  // Fairy-class: Goblin Pass makes non-hostile
   }
   DangerDingoEnemy.prototype = Object.create(Enemy.prototype);
   DangerDingoEnemy.prototype.constructor = DangerDingoEnemy;

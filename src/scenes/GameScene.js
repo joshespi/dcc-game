@@ -699,6 +699,8 @@ var GameScene = new Phaser.Class({
         continue;
       }
       if (_carlInSafe) e._aggroed = false;
+      // Goblin Pass: goblins + fairies non-hostile to pass holders
+      if (this.status.hasGoblinPass && e._goblinFaction) e._aggroed = false;
 
       e.update(_carlX, _carlY, delta, this.enemyMissiles, this.corpses);
 
@@ -1106,6 +1108,7 @@ var GameScene = new Phaser.Class({
     var SCROLLS_HIGH = [scroll('Scroll of Blight',    'scroll_blight', 'Damages all nearby enemies'),
                         scroll('Scroll of Swiftness', 'scroll_swift',  'Doubles speed for 10s'),
                         scroll('Scroll of Iron Skin', 'scroll_iron',   'Grants +10 defense for 15s')];
+    function goblinPass() { return { type: 'consumable', name: 'Goblin Pass Tattoo', effect: 'goblin_pass', desc: 'Goblins and fairies become non-hostile. Permanent.', sprite: 'potion' }; }
 
     var items = [];
     var r = Math.random();
@@ -1126,9 +1129,14 @@ var GameScene = new Phaser.Class({
       if (Math.random() < 0.55) items.push(hp());
 
     } else if (tier === 'gold') {
-      // 2 items: rare gear + scroll/potion
-      if (r < 0.55) items.push(wep(RARE_WEPS, 6 + f * 2, 4));
-      else items.push(arm(RARE_ARMS, 4 + f, 3));
+      // 2 items: rare gear + scroll/potion; 8% chance Goblin Pass instead
+      if (!this.status.hasGoblinPass && Math.random() < 0.08) {
+        items.push(goblinPass());
+      } else if (r < 0.55) {
+        items.push(wep(RARE_WEPS, 6 + f * 2, 4));
+      } else {
+        items.push(arm(RARE_ARMS, 4 + f, 3));
+      }
       items.push(Math.random() < 0.55 ? pick(SCROLLS_HIGH) : mp());
 
     } else if (tier === 'platinum') {
@@ -1957,6 +1965,14 @@ var GameScene = new Phaser.Class({
         scene3.status._ironSkinUntil   = 0;
         scene3.status._ironSkinDefense = 0;
         scene3._floatText(scene3.carl.x(), scene3.carl.y() - 14, 'iron skin faded', '#448899', 9);
+      });
+
+    } else if (item.effect === 'goblin_pass') {
+      this.status.hasGoblinPass = true;
+      this._floatText(cx, cy - 24, 'GOBLIN PASS!', '#aaddaa', 13);
+      this.messages.push('GOBLIN PASS TATTOO APPLIED. GOBLINS AND FAIRIES RECOGNIZE THE MARK. THEY WILL NOT ATTACK YOU. DONUT IS PLEASED.');
+      this.time.delayedCall(1200, function () {
+        scene.messages.push(MessageSystem.donutReaction('safe_room'));
       });
     }
   },

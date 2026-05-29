@@ -42,6 +42,7 @@ var CrawlerStatus = (function () {
     this.mp    = this.stats.int * 10;
     this.maxMp = this.stats.int * 10;
     this.bossKilledFloor = 0;
+    this.hasGoblinPass   = false;
     // Temporary scroll/buff effects — set to 0 by default, non-zero while active
     this._swiftnessUntil   = 0;
     this._ironSkinUntil    = 0;
@@ -412,6 +413,7 @@ var CrawlerStatus = (function () {
       skills:    Object.assign({}, this.skills),
       skillXp:   Object.assign({}, this.skillXp),
       bossKilledFloor: this.bossKilledFloor || 0,
+      hasGoblinPass:   this.hasGoblinPass   || false,
     };
   };
 
@@ -444,10 +446,12 @@ var CrawlerStatus = (function () {
     s.skills  = Object.assign({ unarmed: 3, melee: 1, endurance: 2, dodge: 1 }, data.skills  || {});
     s.skillXp = Object.assign({ unarmed: 0, melee: 0, endurance: 0, dodge: 0 }, data.skillXp || {});
     s.bossKilledFloor    = data.bossKilledFloor || 0;
+    s.hasGoblinPass      = data.hasGoblinPass   || false;
     // Scroll buffs don't persist across save/load (they'd have expired anyway)
     s._swiftnessUntil   = 0;
     s._ironSkinUntil    = 0;
     s._ironSkinDefense  = 0;
+    s._dexBuffUntil     = 0;
     s.equippedWeapon = data.equippedWeaponIdx != null ? s.inventory[data.equippedWeaponIdx] : null;
     s.equippedArmor  = data.equippedArmorIdx  != null ? s.inventory[data.equippedArmorIdx]  : null;
     s.hotlist = (data.hotlistIndices || []).map(function (idx) {
