@@ -1885,6 +1885,30 @@ var GameScene = new Phaser.Class({
       this.messages.push('SCROLL OF FORTUNE CONSUMED. +' + xpGain + ' XP. THE DUNGEON ACKNOWLEDGES YOUR GREED.');
       if (lvlUp2) { var _s2 = this; lvlUp2.forEach(function (lu) { _s2._onLevelUp(lu); }); }
       _playLevelUp();
+
+    } else if (item.effect === 'scroll_swift') {
+      var swiftDur = 10000;
+      this.status._swiftnessUntil = Date.now() + swiftDur;
+      this._floatText(cx, cy - 20, 'SWIFTNESS!', '#aaffcc', 13);
+      this.messages.push('SCROLL OF SWIFTNESS CONSUMED. SPEED DOUBLED FOR 10 SECONDS. TRY TO USE IT WISELY.');
+      var scene2 = this;
+      this.time.delayedCall(swiftDur, function () {
+        scene2.status._swiftnessUntil = 0;
+        scene2._floatText(scene2.carl.x(), scene2.carl.y() - 14, 'speed fading', '#668866', 9);
+      });
+
+    } else if (item.effect === 'scroll_iron') {
+      var ironDur = 15000;
+      this.status._ironSkinUntil   = Date.now() + ironDur;
+      this.status._ironSkinDefense = 10;
+      this._floatText(cx, cy - 20, 'IRON SKIN! +10 DEF', '#88ccff', 13);
+      this.messages.push('SCROLL OF IRON SKIN CONSUMED. +10 DEFENSE FOR 15 SECONDS. YOU FEEL HARDER TO KILL. YOU ARE SLIGHTLY HARDER TO KILL.');
+      var scene3 = this;
+      this.time.delayedCall(ironDur, function () {
+        scene3.status._ironSkinUntil   = 0;
+        scene3.status._ironSkinDefense = 0;
+        scene3._floatText(scene3.carl.x(), scene3.carl.y() - 14, 'iron skin faded', '#448899', 9);
+      });
     }
   },
 
