@@ -260,6 +260,9 @@ var GameScene = new Phaser.Class({
             scene.status.applyDebuff(DEBUFF_TAINT, 300000, 0, 99999);
             scene._floatText(scene.carl.x(), scene.carl.y() - 32, 'THE TAINT!', '#44dd22', 13);
             scene.messages.push('CLURICHAUN\'S SNEEZE COATS YOU IN LIME-GREEN OIL. THE TAINT: ALL HEALING BLOCKED FOR 5 MINUTES. DONUT IS DISGUSTED.');
+            scene.time.delayedCall(1200, function () {
+              scene.messages.push(MessageSystem.donutReaction('taint_hit'));
+            });
           }
         } else if (debuffType) {
           scene.status.applyDebuff(debuffType, 8000, 1, 2000);
@@ -602,6 +605,14 @@ var GameScene = new Phaser.Class({
       this._handleShopBuy(shopBuyIdx);
     }
 
+    // Track Taint expiry — notify when it wears off
+    var taintNow = this.status.hasDebuff(DEBUFF_TAINT);
+    if (this._taintWasActive && !taintNow) {
+      this._floatText(this.carl.x(), this.carl.y() - 30, 'TAINT CLEARED', '#44ff88', 11);
+      this.messages.push('THE TAINT HAS WORN OFF. HEALING RESTORED. DONUT DECLINES TO COMMENT ON THE SMELL.');
+    }
+    this._taintWasActive = taintNow;
+
     if (this.status.debuffs && this.status.debuffs.length > 0) {
       var debuffDmg = this.status.tickDebuffs();
       if (debuffDmg > 0) {
@@ -920,6 +931,7 @@ var GameScene = new Phaser.Class({
           scene._knockdownUntil = Math.max(scene._knockdownUntil, Date.now() + 600);
           scene._floatText(scene.carl.x(), scene.carl.y() - 30, 'HEADACHE!', '#cc44aa', 12);
           scene.messages.push('MIND HORROR PSIONIC PULSE. YOUR HEAD FEELS LIKE IT\'S SPLITTING. DONUT IS UNAFFECTED AND SMUG ABOUT IT.');
+          if (Math.random() < 0.5) scene.messages.push(MessageSystem.donutReaction('psionic'));
           scene.cameras.main.shake(200, 0.009);
           scene.registry.set('hurtFlash', true);
         }

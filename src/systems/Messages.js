@@ -405,6 +405,17 @@ var MessageSystem = (function () {
         '"YOU NEED TO STOP GETTING HIT." - DONUT',
         '"I DID THAT BECAUSE I CHOSE TO. NOT FOR YOU." - DONUT',
       ],
+      psionic: [
+        '"I FEEL NOTHING. THIS IS NICE." - DONUT',
+        '"PSIONIC ATTACKS. I AM IMMUNE. YOU ARE NOT. I WILL NOTE THE DIFFERENCE." - DONUT',
+        '"IT TRIED TO READ MY MIND. IT RETREATED IMMEDIATELY." - DONUT',
+        '"HEADACHE? INTERESTING. I DO NOT HAVE ONE." - DONUT',
+      ],
+      taint_hit: [
+        '"YOU WALKED INTO ITS SNEEZE. I SAW. I WATCHED YOU WALK INTO IT." - DONUT',
+        '"THE TAINT. CANNOT HEAL. DO NOT DO ANYTHING BRAVE RIGHT NOW." - DONUT',
+        '"LIME GREEN OIL. ON YOU. BECAUSE YOU STOOD THERE." - DONUT',
+      ],
     };
     var pool = reactions[type] || ['"..." - DONUT'];
     return pool[Math.floor(Math.random() * pool.length)];
