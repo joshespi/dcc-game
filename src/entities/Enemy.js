@@ -933,6 +933,48 @@ var EnemyFactory = (function () {
     }
   };
 
+  // ── Mind Horror (Floor 2) — floating brain jellyfish, psionic proximity attack ──
+  // Lore: moves slowly, psionic attack is mental (not physical), Donut unaffected.
+  // Physically very weak — bounces/splatters when punched. Do NOT enter their neighborhood.
+
+  DEFS.mind_horror = {
+    name: 'Mind Horror', texture: 'mind_horror', hp: 8, damage: 0,
+    speed: 28, xp: 20,
+    aggroRange: 200, attackRange: 140, attackCd: 2500,
+    isMelee: false, missileSpeed: 0, // psionic attack handled in update override
+    bodyW: 16, bodyH: 14,
+  };
+
+  function MindHorrorEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.mind_horror);
+    this.isMelee = false;
+    this._psionicCd = 0;
+    this._psionicCdMs = 2500;
+    this._onPsionic = null; // callback(dmg) → set by GameScene
+    // Float gently up and down
+    scene.tweens.add({
+      targets: this.sprite, y: this.sprite.y - 6,
+      duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+  }
+  MindHorrorEnemy.prototype = Object.create(Enemy.prototype);
+  MindHorrorEnemy.prototype.constructor = MindHorrorEnemy;
+
+  MindHorrorEnemy.prototype.setPsionicCallback = function (fn) { this._onPsionic = fn; };
+
+  MindHorrorEnemy.prototype._doAttack = function (carlX, carlY) {
+    if (this._onPsionic) this._onPsionic(this.damage || 6);
+    // Visual burst from caster
+    var g = this.scene.add.graphics().setDepth(18);
+    g.fillStyle(0xcc44aa, 0.4);
+    g.fillCircle(this.sprite.x, this.sprite.y, 50);
+    this.scene.tweens.add({
+      targets: g, alpha: 0, scaleX: 2.2, scaleY: 2.2, duration: 600,
+      onComplete: function () { g.destroy(); }
+    });
+    _playHitSound(0.04);
+  };
+
   // ── Clurichaun Rev-Up Consultant (Floor 2) — ranged slingshot, inflicts The Taint ──
   // Lore: small troll-like, oversized head, hook nose, ruddy cheeks, green overalls, pilgrim shoes.
   // Sneezes lime-green oily residue (The Taint) that blocks all healing for 5 minutes.
@@ -1078,6 +1120,7 @@ var EnemyFactory = (function () {
     if (type === 'clurichaun')     return new ClurichaunnEnemy(scene, x, y, scaledDef);
     if (type === 'brindled_vespa') return new BrindledVespaEnemy(scene, x, y, scaledDef);
     if (type === 'kobold_rider')   return new KoboldRiderEnemy(scene, x, y, scaledDef);
+    if (type === 'mind_horror')    return new MindHorrorEnemy(scene, x, y, scaledDef);
     return new Enemy(scene, x, y, scaledDef);
   }
 
@@ -1111,8 +1154,8 @@ var EnemyFactory = (function () {
   // Types available per floor
   function typesForFloor(floorNum) {
     if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_basher', 'trog_virtuoso', 'scatterer', 'scatterer', 'bad_llama', 'scat_thug'];
-    // Floor 2: skeletons + dingoes + clurichauns + kobold riders + vespas (from pupa)
-    if (floorNum === 2) return ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider'];
+    // Floor 2: skeletons + dingoes + clurichauns + kobold riders + mind horrors + vespas (from pupa)
+    if (floorNum === 2) return ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider', 'mind_horror'];
     return ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];
   }
 
@@ -1183,6 +1226,7 @@ var EnemyFactory = (function () {
     ClurichaunnEnemy: ClurichaunnEnemy,
     BrindledVespaEnemy: BrindledVespaEnemy,
     KoboldRiderEnemy: KoboldRiderEnemy,
+    MindHorrorEnemy: MindHorrorEnemy,
     resetSwarms: _resetScattererSwarm,
   };
 })();

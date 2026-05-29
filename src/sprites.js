@@ -1607,6 +1607,87 @@ var SpriteGen = (function () {
     return c;
   }
 
+  // ── MIND HORROR (Floor 2) — floating brain/jellyfish, psionic attacks ──────
+  // Lore: floating brain with tentacles underneath, looks like jellyfish/mini-blimp.
+  // Moves slowly. Psionic attack causes debilitating headache. Physically weak — punch splatters.
+  function genMindHorror() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var BRAIN = '#c878a0', BRAIND = '#a05078', BRAINL = '#e8a0c8';
+    var VEIN  = '#882060';
+    var TENT  = 'rgba(180,100,160,0.7)';
+    var GLOW  = 'rgba(200,80,180,0.3)';
+    var PUPIL = '#200010';
+
+    // Psionic glow aura
+    ctx.fillStyle = GLOW;
+    ctx.beginPath(); ctx.arc(16, 14, 14, 0, Math.PI * 2); ctx.fill();
+
+    // Tentacles — trailing downward like a jellyfish
+    ctx.strokeStyle = TENT; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    var tentPositions = [9, 11, 14, 17, 20, 23];
+    for (var ti = 0; ti < tentPositions.length; ti++) {
+      var tx2 = tentPositions[ti];
+      var wag = (ti % 2 === 0 ? 1 : -1) * 4;
+      ctx.beginPath();
+      ctx.moveTo(tx2, 22);
+      ctx.quadraticCurveTo(tx2 + wag, 28, tx2 + wag * 0.5, 32);
+      ctx.stroke();
+    }
+
+    // Brain body — dome shape (top hemisphere, flat bottom)
+    ctx.fillStyle = BRAIN;
+    ctx.beginPath(); ctx.ellipse(16, 16, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BRAINL;
+    ctx.beginPath(); ctx.ellipse(15, 14, 8, 6, -0.2, 0, Math.PI * 2); ctx.fill();
+
+    // Brain folds — irregular lines across surface
+    ctx.strokeStyle = VEIN; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(8, 14); ctx.quadraticCurveTo(12, 11, 16, 14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16, 14); ctx.quadraticCurveTo(20, 11, 24, 14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(10, 18); ctx.quadraticCurveTo(16, 16, 22, 18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, 21); ctx.quadraticCurveTo(16, 19, 20, 21); ctx.stroke();
+
+    // Veins branching
+    ctx.strokeStyle = 'rgba(136,32,96,0.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(8, 12); ctx.lineTo(12, 9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(24, 12); ctx.lineTo(20, 9); ctx.stroke();
+
+    // Central eye — the unnerving bit
+    ctx.fillStyle = '#220012';
+    ctx.beginPath(); ctx.ellipse(16, 16, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#880040';
+    ctx.beginPath(); ctx.ellipse(16, 16, 2.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,80,200,0.9)';
+    ctx.fillRect(15, 15, 2, 2); // eye glow center
+
+    outline(ctx, '#180010', T, T);
+    return c;
+  }
+
+  // ── MAILBOX (safe rooms Floor 2+) — standard black mailbox with red flag ──
+  function genMailbox() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    // Pole
+    ctx.fillStyle = '#666666'; ctx.fillRect(15, 14, 3, 18);
+    // Box body — standard mailbox shape
+    ctx.fillStyle = '#111111'; ctx.fillRect(7, 8, 18, 12);
+    ctx.fillStyle = '#222222'; ctx.fillRect(7, 8, 18, 4); // darker top
+    // Dome top (postal box shape)
+    ctx.fillStyle = '#111111';
+    ctx.beginPath(); ctx.ellipse(16, 8, 9, 4, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#333333';
+    ctx.beginPath(); ctx.ellipse(16, 8, 7, 3, 0, 0, Math.PI); ctx.fill();
+    // Door/slot line
+    ctx.fillStyle = '#444444'; ctx.fillRect(9, 15, 14, 1);
+    // Red flag (raised)
+    ctx.fillStyle = '#cc2222'; ctx.fillRect(24, 8, 3, 7);
+    ctx.fillStyle = '#ff3333'; ctx.fillRect(24, 8, 3, 1);
+    // Flag pole
+    ctx.fillStyle = '#888888'; ctx.fillRect(24, 8, 1, 9);
+    outline(ctx, '#000000', T, T);
+    return c;
+  }
+
   // ── REGISTER ALL ─────────────────────────────────────────────────────────
 
   function init(scene) {
@@ -1650,6 +1731,8 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('clurichaun',      genClurichaun());
     scene.textures.addCanvas('brindled_vespa',  genBrindledVespa());
     scene.textures.addCanvas('kobold_rider',    genKoboldRider());
+    scene.textures.addCanvas('mind_horror',     genMindHorror());
+    scene.textures.addCanvas('mailbox',         genMailbox());
   }
 
   return { init: init };

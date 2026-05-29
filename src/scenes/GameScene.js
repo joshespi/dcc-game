@@ -171,6 +171,19 @@ var GameScene = new Phaser.Class({
       this._bopcas.push({ sprite: bmspr, x: bmx, y: bmy });
     }
 
+    // ── Mailboxes (Floor 2+ safe rooms) ─────────────────────────────────────
+    this._mailboxes = [];
+    if (this.currentFloor >= 2) {
+      for (var mbi = 0; mbi < this._safeRooms.length; mbi++) {
+        var mbsr = this._safeRooms[mbi];
+        // Place mailbox offset from Bopca — south-east corner of safe room
+        var mbx = (mbsr.x + mbsr.w - 2) * 32 + 16;
+        var mby = (mbsr.y + mbsr.h - 2) * 32 + 16;
+        var mbspr = this.add.image(mbx, mby, 'mailbox').setDepth(11);
+        this._mailboxes.push({ sprite: mbspr, x: mbx, y: mby, _opened: false });
+      }
+    }
+
     // Proximity prompt — single reusable text shown near nearest interactable
     this._proximityPrompt = this.add.text(0, 0, '', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffdd88',
@@ -744,11 +757,13 @@ var GameScene = new Phaser.Class({
       // UIScene owns E while shop is open
     } else if (Phaser.Input.Keyboard.JustDown(this.interactKey) && nowMs - this._interactCd > 600) {
       this._interactCd = nowMs;
-      // Priority: stairs > merchant > loot box > corpse > potion
+      // Priority: stairs > mailbox > merchant > loot box > corpse > potion
       // Merchant beats loot so claimed boxes don't block Tally in the safe room.
       var didStairs = this._checkStairsInteract();
       if (!didStairs) {
-        if (this._nearBopca) {
+        if (this._nearMailbox) {
+          this._checkMailboxInteract();
+        } else if (this._nearBopca) {
           this._openShop();
         } else {
           var lootOpened = this._checkLootInteract();
@@ -894,6 +909,20 @@ var GameScene = new Phaser.Class({
       enemy.setPupaCallback(function (px, py) {
         scene.messages.push('A BRINDLE GRUB PUPA HATCHES. A BRINDLED VESPA EMERGES. DONUT SUGGESTS RUNNING.');
         scene._spawnSingleEnemy('brindled_vespa', px, py, scene.currentFloor);
+      });
+    }
+    if (enemy instanceof EnemyFactory.MindHorrorEnemy) {
+      enemy.setPsionicCallback(function (dmg) {
+        if (scene.isInSafeRoom()) return;
+        var actual = scene.carl.receiveHit(dmg, 'Mind Horror');
+        if (actual > 0) {
+          scene._lastKiller = 'Mind Horror';
+          scene._knockdownUntil = Math.max(scene._knockdownUntil, Date.now() + 600);
+          scene._floatText(scene.carl.x(), scene.carl.y() - 30, 'HEADACHE!', '#cc44aa', 12);
+          scene.messages.push('MIND HORROR PSIONIC PULSE. YOUR HEAD FEELS LIKE IT\'S SPLITTING. DONUT IS UNAFFECTED AND SMUG ABOUT IT.');
+          scene.cameras.main.shake(200, 0.009);
+          scene.registry.set('hurtFlash', true);
+        }
       });
     }
     enemy.onDeath(function (dead) { scene._onEnemyDeath(dead); });
@@ -1094,6 +1123,7 @@ var GameScene = new Phaser.Class({
     'Clurichaun':     [{ name: 'MLM Pamphlet', quality: 'common' }, { name: 'Clay Jug Shard', quality: 'common' }],
     'Brindled Vespa': [{ name: 'Vespa Chitin', quality: 'uncommon' }, { name: 'Vespa Gland', quality: 'uncommon' }],
     'Kobold Rider':   [{ name: 'Beer-Can Chainmail', quality: 'common' }, { name: 'Kobold Lance Tip', quality: 'common' }],
+    'Mind Horror':    [{ name: 'Psionic Residue', quality: 'uncommon' }, { name: 'Brain Jelly', quality: 'uncommon' }],
   },
 
   _craftingDropForEnemy: function (typeName) {
@@ -1903,6 +1933,15 @@ var GameScene = new Phaser.Class({
       if (bpdx * bpdx + bpdy * bpdy < BOPCA_R2) { this._nearBopca = bp; break; }
     }
 
+    this._nearMailbox = null;
+    if (this._mailboxes) {
+      for (var mxi = 0; mxi < this._mailboxes.length; mxi++) {
+        var mb = this._mailboxes[mxi];
+        var mbdx = mb.x - cx, mbdy = mb.y - cy;
+        if (mbdx * mbdx + mbdy * mbdy < BOPCA_R2) { this._nearMailbox = mb; break; }
+      }
+    }
+
     var p = this._proximityPrompt;
     var inSafe = this._carlInSafeCache !== undefined ? this._carlInSafeCache : this.isInSafeRoom();
     var packedCount = this._claimedBoxes.length;
@@ -1932,6 +1971,9 @@ var GameScene = new Phaser.Class({
     } else if (this._nearBopca) {
       p.setText('[E] shop  (' + this.status.gold + 'g)')
         .setPosition(this._nearBopca.x, this._nearBopca.y - 26).setAlpha(1);
+    } else if (this._nearMailbox) {
+      p.setText('[E] check mail')
+        .setPosition(this._nearMailbox.x, this._nearMailbox.y - 28).setAlpha(1);
     } else if (nearStairs) {
       var stLabel = this._stairsUnlocked ? '[E] descend' : '[E] stairs  (sealed)';
       var stX = st.x * 32 + 16, stY = st.y * 32 + 16;
@@ -2026,6 +2068,20 @@ var GameScene = new Phaser.Class({
       bossAlive: !!(this._bossEnemy && !this._bossEnemy.isDead()),
       hasBoss:   !!this._bossRoom,
     };
+  },
+
+  _checkMailboxInteract: function () {
+    var mb = this._nearMailbox;
+    if (!mb) return;
+    var MAIL_MESSAGES = [
+      'MAILBOX: "WHY WOULD SOMEONE SEND YOU MAIL?" — BORANT CORPORATION POSTAL SERVICE.',
+      'MAILBOX CHECKED. CONTENTS: NOTHING. THE FLAG WAS DECORATIVE. IT IS ALWAYS DECORATIVE.',
+      'MAILBOX: NO MAIL. BORANT CORPORATION HAS READ ALL OF IT. SOME OF IT WAS INTERESTING. THEY WILL NOT SAY WHICH.',
+      'MAILBOX: EMPTY. DONUT SAYS SHE WAS EXPECTING A PACKAGE. DONUT DECLINES TO ELABORATE.',
+    ];
+    var msg = MAIL_MESSAGES[Math.floor(Math.random() * MAIL_MESSAGES.length)];
+    this.messages.push(msg);
+    _playPickup();
   },
 
   isInSafeRoom: function () {
