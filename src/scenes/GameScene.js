@@ -135,7 +135,8 @@ var GameScene = new Phaser.Class({
     if (this._guildHall) {
       var ghCX = (this._guildHall.x + Math.floor(this._guildHall.w / 2)) * 32 + 16;
       var ghCY = (this._guildHall.y + Math.floor(this._guildHall.h / 2) - 1) * 32 + 16;
-      this._guildNPC = this.add.image(ghCX, ghCY, 'guildmaster').setDepth(8).setScale(1.2);
+      var npcKey = this.currentFloor >= 2 ? 'bugaboo' : 'guildmaster';
+      this._guildNPC = this.add.image(ghCX, ghCY, npcKey).setDepth(8).setScale(1.2);
       // Subtle gold glow pulse
       this.tweens.add({
         targets: this._guildNPC, alpha: 0.75, duration: 1200,
@@ -2621,7 +2622,7 @@ var GameScene = new Phaser.Class({
     if (!inside) return;
 
     if (this.status.tutorialComplete) {
-      this.messages.push(MessageSystem.guildGuide());
+      this.messages.push(MessageSystem.guildGuide(this.currentFloor));
     } else if (!this._tutorialRunning) {
       this._startTutorial();
     }
@@ -2631,12 +2632,13 @@ var GameScene = new Phaser.Class({
     this._tutorialRunning = true;
     var scene = this;
     var STEP_MS = 3800;  // time between each dialog line
+    var stepFn = scene.currentFloor >= 2 ? MessageSystem.tutorialStepFloor2 : MessageSystem.tutorialStep;
 
     // Fire steps 0-7 (dialog lines)
     for (var i = 0; i < 8; i++) {
       (function (step) {
         scene.time.delayedCall(step * STEP_MS, function () {
-          scene.messages.push(MessageSystem.tutorialStep(step));
+          scene.messages.push(stepFn(step));
           // Step 6: give heal spell (slot 0) + Donut glow
           if (step === 6) scene._tutorialGiveSpell();
           // Step 7: give starter items
@@ -2647,7 +2649,7 @@ var GameScene = new Phaser.Class({
 
     // Final step: unlock HUD
     scene.time.delayedCall(8 * STEP_MS, function () {
-      scene.messages.push(MessageSystem.tutorialStep(9));
+      scene.messages.push(stepFn(9));
       scene.status.tutorialComplete = true;
       SaveSystem.save(scene.status, scene.currentFloor);
       scene.registry.set('savedFlash', true);

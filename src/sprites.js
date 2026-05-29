@@ -871,6 +871,90 @@ var SpriteGen = (function () {
     return c;
   }
 
+  // ── BUGABOO — Mordecai's Floor 2 avatar ──────────────────────────────────
+  // Lore: bear-like, obsidian fur, enormous owlish eyes, no neck, skinny legs, 7ft tall.
+  // Solitary creatures found on lower floors. Non-Combatant NPC. Level 50.
+
+  function genBugaboo() {
+    var c = canvas(T, T), ctx = ctx2d(c);
+
+    var FUR  = '#0d0d14';  // obsidian near-black fur
+    var FURL = '#1e1e2e';  // fur highlight (subtle blue-black)
+    var FURD = '#060608';  // fur deep shadow
+    var EYE  = '#e8f4ff';  // enormous owlish eyes — pale blue-white
+    var EYEG = '#b8d8ff';  // eye glow ring
+    var PUP  = '#0a0a10';  // pupil
+    var SHIN = '#ffffff';  // eye shine
+
+    // ── Skinny legs — disproportionately thin ────────────────────────────────
+    rect(ctx, 11, 25, 3, 7, FURD);
+    rect(ctx, 18, 25, 3, 7, FURD);
+    // Feet — stubby
+    ctx.fillStyle = FUR;
+    ctx.fillRect(10, 30, 5, 2);
+    ctx.fillRect(17, 30, 5, 2);
+
+    // ── Body — wide rounded bear torso, no neck ───────────────────────────────
+    ctx.fillStyle = FUR;
+    ctx.beginPath(); ctx.ellipse(16, 20, 10, 8, 0, 0, Math.PI*2); ctx.fill();
+    // Fur texture highlight along top
+    ctx.fillStyle = FURL;
+    ctx.beginPath(); ctx.ellipse(16, 16, 7, 4, 0, 0, Math.PI*2); ctx.fill();
+    // Deep shadow underside
+    ctx.fillStyle = FURD;
+    ctx.beginPath(); ctx.ellipse(16, 23, 8, 4, 0, 0, Math.PI*2); ctx.fill();
+
+    // ── Arms — short, hanging at sides ───────────────────────────────────────
+    ctx.fillStyle = FURD;
+    ctx.beginPath(); ctx.ellipse(7, 20, 3, 5, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(25, 20, 3, 5, -0.3, 0, Math.PI*2); ctx.fill();
+    // Claws — 3 per hand, barely visible
+    ctx.fillStyle = '#2a2a3a';
+    ctx.fillRect(4, 24, 2, 1); ctx.fillRect(6, 25, 2, 1); ctx.fillRect(8, 24, 2, 1);
+    ctx.fillRect(22, 24, 2, 1); ctx.fillRect(24, 25, 2, 1); ctx.fillRect(26, 24, 2, 1);
+
+    // ── Head — large, sits directly on body (no neck) ────────────────────────
+    ctx.fillStyle = FUR;
+    ctx.beginPath(); ctx.ellipse(16, 10, 9, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = FURL;
+    ctx.beginPath(); ctx.ellipse(16, 8, 6, 5, 0, 0, Math.PI*2); ctx.fill();
+
+    // ── Round ears ────────────────────────────────────────────────────────────
+    ctx.fillStyle = FUR;
+    circle(ctx, 8, 4, 3, FUR);
+    circle(ctx, 24, 4, 3, FUR);
+    ctx.fillStyle = FURD;
+    circle(ctx, 8, 4, 1.5, FURD);
+    circle(ctx, 24, 4, 1.5, FURD);
+
+    // ── Enormous owlish eyes — defining feature ───────────────────────────────
+    // Glow rings (slightly larger than iris)
+    ctx.fillStyle = EYEG;
+    ctx.beginPath(); ctx.ellipse(12, 10, 5, 5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20, 10, 5, 5, 0, 0, Math.PI*2); ctx.fill();
+    // Iris — pale blue-white, huge
+    ctx.fillStyle = EYE;
+    ctx.beginPath(); ctx.ellipse(12, 10, 4, 4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20, 10, 4, 4, 0, 0, Math.PI*2); ctx.fill();
+    // Pupil — round, black
+    ctx.fillStyle = PUP;
+    ctx.beginPath(); ctx.ellipse(12, 10, 2, 2.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20, 10, 2, 2.5, 0, 0, Math.PI*2); ctx.fill();
+    // Eye shine — two dots each
+    ctx.fillStyle = SHIN;
+    ctx.fillRect(11, 8, 1, 1); ctx.fillRect(13, 9, 1, 1);
+    ctx.fillRect(19, 8, 1, 1); ctx.fillRect(21, 9, 1, 1);
+
+    // ── Snout — small, barely visible under eyes ──────────────────────────────
+    ctx.fillStyle = FURD;
+    ctx.beginPath(); ctx.ellipse(16, 14, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#181820';
+    ctx.fillRect(15, 13, 2, 1); // nostrils hint
+
+    outline(ctx, '#000000', T, T);
+    return c;
+  }
+
   // ── PROJECTILES / EFFECTS ─────────────────────────────────────────────────
 
   function genMagicMissile() {
@@ -1886,6 +1970,7 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('weapon',       genWeapon());
     scene.textures.addCanvas('armor',        genArmor());
     scene.textures.addCanvas('guildmaster',  genGuildmaster());
+    scene.textures.addCanvas('bugaboo',      genBugaboo());
     scene.textures.addCanvas('hoarder',      genHoarder());
     scene.textures.addCanvas('rot_sticker',  genRotSticker());
     scene.textures.addCanvas('trog_pygmy',     genTrogPygmy());
