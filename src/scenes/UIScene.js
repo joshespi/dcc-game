@@ -56,12 +56,14 @@ var UIScene = new Phaser.Class({
     this._gameScene = null;
     this._hudUnlocked = false;
     this._debuffStr     = null;
+    this._achievementQueue = [];
   },
 
   create: function () {
     var W = this.cameras.main.width;
     var H = this.cameras.main.height;
     this.W = W; this.H = H;
+    this._achievementQueue = []; // drop any badge left mid-flight by a prior floor
 
     // ── Hurt vignette — full-screen red flash on damage ───────────────────────
     this._hurtVignette = this.add.rectangle(0, 0, W, H, 0xcc0000, 0)
@@ -494,40 +496,47 @@ var UIScene = new Phaser.Class({
   },
 
   _showAchievementBadge: function (text) {
+    this._achievementQueue.push(text);
+    if (this._achievementQueue.length === 1) this._flushAchievementQueue();
+  },
+
+  _flushAchievementQueue: function () {
+    if (!this._achievementQueue.length) return;
+    var text = this._achievementQueue[0];
+    var scene = this;
     var W = this.W, H = this.H;
+
     var label = text.replace(/^ACHIEVEMENT[: ]*UNLOCKED?[: ]*/i, '')
                     .replace(/^ACHIEVEMENT[: ]*/i, '');
-    // Strip trailing context after first '.' for the badge title (keep full text in log)
     var firstDot = label.indexOf('.');
     var title = firstDot > 0 ? label.substring(0, firstDot) : label;
     title = title.replace(/^"|"$/g, '').trim();
-    if (title.length > 60) title = title.substring(0, 57) + '...';
+    if (title.length > 50) title = title.substring(0, 47) + '...';
 
-    var bg = this.add.rectangle(W / 2, H / 2 - 40, 480, 90, 0x111108, 0.92)
-      .setStrokeStyle(3, 0xffdd44, 0.95).setDepth(300).setAlpha(0);
-    var header = this.add.text(W / 2, H / 2 - 64, 'ACHIEVEMENT UNLOCKED', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ffaa22',
+    var cy = H * 0.22;
+    var bg = this.add.rectangle(W / 2, cy, 340, 54, 0x111108, 0.92)
+      .setStrokeStyle(2, 0xffdd44, 0.95).setDepth(300).setAlpha(0);
+    var header = this.add.text(W / 2, cy - 14, 'ACHIEVEMENT UNLOCKED', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#ffaa22',
     }).setOrigin(0.5).setDepth(301).setAlpha(0);
-    var titleText = this.add.text(W / 2, H / 2 - 32, title, {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44',
-      stroke: '#000000', strokeThickness: 3, align: 'center',
-      wordWrap: { width: 460 }
+    var titleText = this.add.text(W / 2, cy + 8, title, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+      stroke: '#000000', strokeThickness: 2, align: 'center',
+      wordWrap: { width: 320 }
     }).setOrigin(0.5).setDepth(301).setAlpha(0);
 
     var all = [bg, header, titleText];
     this.tweens.add({
-      targets: all, alpha: 1, duration: 350, ease: 'Cubic.Out',
-      onComplete: function () {
-        bg.scene.tweens.add({
-          targets: bg, scaleX: 1.04, scaleY: 1.04, duration: 600,
-          yoyo: true, repeat: 1, ease: 'Sine.easeInOut'
-        });
-      }
+      targets: all, alpha: 1, duration: 250, ease: 'Cubic.Out',
     });
-    this.time.delayedCall(3200, function () {
+    this.time.delayedCall(2400, function () {
       bg.scene.tweens.add({
-        targets: all, alpha: 0, duration: 500,
-        onComplete: function () { all.forEach(function (o) { o.destroy(); }); }
+        targets: all, alpha: 0, duration: 400,
+        onComplete: function () {
+          all.forEach(function (o) { o.destroy(); });
+          scene._achievementQueue.shift();
+          scene._flushAchievementQueue();
+        }
       });
     });
   },

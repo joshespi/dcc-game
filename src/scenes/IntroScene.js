@@ -133,8 +133,7 @@ var IntroScene = new Phaser.Class({
     if (freshStart) SaveSystem.clear();
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.time.delayedCall(420, function () {
-      scene.scene.start('GameScene', { floor: 1 });
-      scene.scene.launch('UIScene');
+      scene.scene.start('GameScene');
     });
   },
 });

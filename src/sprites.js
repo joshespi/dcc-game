@@ -9,6 +9,7 @@ var SpriteGen = (function () {
     c.width = w; c.height = h;
     return c;
   }
+  function ctx2d(c) { return c.getContext('2d', { willReadFrequently: true }); }
 
   // Shorthand helpers
   function fill(ctx, color) { ctx.fillStyle = color; }
@@ -51,7 +52,7 @@ var SpriteGen = (function () {
   // ── TILES ─────────────────────────────────────────────────────────────────
 
   function tileFloor() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     // Base stone
     ctx.fillStyle = '#48444e'; ctx.fillRect(0, 0, T, T);
     // Grout lines
@@ -70,7 +71,7 @@ var SpriteGen = (function () {
   }
 
   function tileWall() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#1a1622'; ctx.fillRect(0, 0, T, T);
     // Brick rows
     var colors = ['#2a2436', '#252030', '#2e2840'];
@@ -90,7 +91,7 @@ var SpriteGen = (function () {
   }
 
   function tileStairs() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#38344a'; ctx.fillRect(0, 0, T, T);
     // Concentric steps
     var steps = [
@@ -113,7 +114,7 @@ var SpriteGen = (function () {
   }
 
   function tileDoor() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     // Archway
     ctx.fillStyle = '#48444e'; ctx.fillRect(0, 0, T, T);
     ctx.fillStyle = '#8a5c2e'; ctx.fillRect(3, 0, 4, T); ctx.fillRect(25, 0, 4, T); ctx.fillRect(3, 0, 26, 4);
@@ -124,7 +125,7 @@ var SpriteGen = (function () {
 
   function tileStart() {
     // The collapse zone — rubble and debris
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#504c5c'; ctx.fillRect(0, 0, T, T);
     ctx.fillStyle = '#282430';
     ctx.fillRect(0, 10, T, 1); ctx.fillRect(0, 21, T, 1);
@@ -140,7 +141,7 @@ var SpriteGen = (function () {
 
   function tileSafeRoom() {
     // Warm linoleum floor — fast food / Waffle House aesthetic
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#3a2e1e'; ctx.fillRect(0, 0, T, T);
     // Checkerboard-ish tiles
     var colors = ['#4a3e2a', '#3e3420'];
@@ -161,7 +162,7 @@ var SpriteGen = (function () {
 
   function tileGuildHall() {
     // Deep blue guild hall floor — polished stone with subtle emblem
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#1a1830'; ctx.fillRect(0, 0, T, T);
     // Stone tiles — darker blue-grey
     var colors = ['#222040', '#1e1c38'];
@@ -181,14 +182,14 @@ var SpriteGen = (function () {
 
   function genTileset() {
     var tiles = [tileFloor(), tileWall(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
-    var c = canvas(T * tiles.length, T), ctx = c.getContext('2d');
+    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
     tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
     return c;
   }
 
   function tileFloorF2() {
     // Floor 2: white/light concrete floor, cracked
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#d8d4cc'; ctx.fillRect(0, 0, T, T);
     // Grout lines
     ctx.fillStyle = '#b0aca4';
@@ -209,7 +210,7 @@ var SpriteGen = (function () {
 
   function tileWallF2() {
     // Floor 2: orange-tinted cinderblock
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     ctx.fillStyle = '#7a4010'; ctx.fillRect(0, 0, T, T);
     // Cinderblock rows (wider, more industrial than brick)
     var blocks = [
@@ -232,7 +233,7 @@ var SpriteGen = (function () {
 
   function genTilesetFloor2() {
     var tiles = [tileFloorF2(), tileWallF2(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
-    var c = canvas(T * tiles.length, T), ctx = c.getContext('2d');
+    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
     tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
     return c;
   }
@@ -468,14 +469,14 @@ var SpriteGen = (function () {
   }
 
   function genCarl(dir) {
-    var c = canvas(CS, CS), ctx = c.getContext('2d');
+    var c = canvas(CS, CS), ctx = ctx2d(c);
     _carlBase(ctx, dir);
     outline(ctx, '#14080c', CS, CS);
     return c;
   }
 
   function genCarlHit(dir) {
-    var c = canvas(CS, CS), ctx = c.getContext('2d');
+    var c = canvas(CS, CS), ctx = ctx2d(c);
     _carlBase(ctx, dir);
     ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = 'rgba(255, 60, 60, 0.55)';
@@ -584,14 +585,14 @@ var SpriteGen = (function () {
   }
 
   function genDonut() {
-    var c = canvas(CS, CS), ctx = c.getContext('2d');
+    var c = canvas(CS, CS), ctx = ctx2d(c);
     _donutBase(ctx);
     outline(ctx, '#14080c', CS, CS);
     return c;
   }
 
   function genDonutGlow() {
-    var c = canvas(CS, CS), ctx = c.getContext('2d');
+    var c = canvas(CS, CS), ctx = ctx2d(c);
     var g = ctx.createRadialGradient(CS/2, CS/2, 4, CS/2, CS/2, CS/2 - 2);
     g.addColorStop(0, 'rgba(240,200,20,0.85)');
     g.addColorStop(0.4, 'rgba(200,140,0,0.4)');
@@ -604,7 +605,7 @@ var SpriteGen = (function () {
   // ── ENEMIES ───────────────────────────────────────────────────────────────
 
   function genRat() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BRN = '#6a4a30', BRL = '#8a6a4a', BRD = '#4a2e18', PNK = '#c08878';
     // Tail
     ctx.strokeStyle = BRD; ctx.lineWidth = 2; ctx.lineCap = 'round';
@@ -631,7 +632,7 @@ var SpriteGen = (function () {
   }
 
   function genGoblin() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var G = '#3a7228', GD = '#285018', GL = '#4a8a38', SKIN = '#5a9a40';
     // Legs
     rect(ctx, 9, 22, 5, 8, GD); rect(ctx, 18, 22, 5, 8, GD);
@@ -661,7 +662,7 @@ var SpriteGen = (function () {
   }
 
   function genCrackCamel() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var TAN = '#c8a050', DARK = '#a07830', LITE = '#d8b870';
     // Legs (four stubs)
     rect(ctx, 7, 24, 4, 8, DARK); rect(ctx, 13, 25, 4, 7, DARK);
@@ -689,7 +690,7 @@ var SpriteGen = (function () {
   }
 
   function genFairy() {
-    var c = canvas(24, 24), ctx = c.getContext('2d');
+    var c = canvas(24, 24), ctx = ctx2d(c);
     var PK = '#e060cc', PD = '#a030a0', WG = 'rgba(180,220,255,0.6)';
     // Wings (translucent)
     ctx.fillStyle = WG;
@@ -716,7 +717,7 @@ var SpriteGen = (function () {
   }
 
   function genSkeleton() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var W = '#e8e0d0', WD = '#c0b8a8', WY = '#d0c890';
     // Feet
     ctx.fillStyle = WD; ctx.beginPath(); ctx.ellipse(11,30,4,2,0,0,Math.PI*2); ctx.fill();
@@ -759,7 +760,7 @@ var SpriteGen = (function () {
   // Glowing hand grants HUD access (wetware activation mechanic).
 
   function genGuildmaster() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
 
     var F1   = '#7a5828';  // tawny brown feathers
     var F2   = '#a07840';  // lighter feathers / face
@@ -873,7 +874,7 @@ var SpriteGen = (function () {
   // ── PROJECTILES / EFFECTS ─────────────────────────────────────────────────
 
   function genMagicMissile() {
-    var c = canvas(16, 16), ctx = c.getContext('2d');
+    var c = canvas(16, 16), ctx = ctx2d(c);
     var g = ctx.createRadialGradient(8,8,1,8,8,7);
     g.addColorStop(0,'#ffffff'); g.addColorStop(0.3,'#aaddff');
     g.addColorStop(0.7,'#2266ff'); g.addColorStop(1,'rgba(0,30,200,0)');
@@ -886,7 +887,7 @@ var SpriteGen = (function () {
   }
 
   function genHealOrb() {
-    var c = canvas(14, 14), ctx = c.getContext('2d');
+    var c = canvas(14, 14), ctx = ctx2d(c);
     var g = ctx.createRadialGradient(7,7,1,7,7,6);
     g.addColorStop(0,'#ffffff'); g.addColorStop(0.4,'#88ffaa'); g.addColorStop(1,'rgba(0,180,60,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(7,7,6,0,Math.PI*2); ctx.fill();
@@ -895,7 +896,7 @@ var SpriteGen = (function () {
   }
 
   function genXPOrb() {
-    var c = canvas(10, 10), ctx = c.getContext('2d');
+    var c = canvas(10, 10), ctx = ctx2d(c);
     var g = ctx.createRadialGradient(5,5,1,5,5,4);
     g.addColorStop(0,'#ffffff'); g.addColorStop(0.4,'#ffee44'); g.addColorStop(1,'rgba(220,150,0,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(5,5,4,0,Math.PI*2); ctx.fill();
@@ -903,7 +904,7 @@ var SpriteGen = (function () {
   }
 
   function genSlash() {
-    var c = canvas(44, 44), ctx = c.getContext('2d');
+    var c = canvas(44, 44), ctx = ctx2d(c);
     ctx.lineCap = 'round';
     ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(4,4); ctx.lineTo(40,40); ctx.stroke();
@@ -916,7 +917,7 @@ var SpriteGen = (function () {
   // ── ITEMS ─────────────────────────────────────────────────────────────────
 
   function genLootBox(open) {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(16,28,11,4,0,0,Math.PI*2); ctx.fill();
     // Box body
@@ -949,7 +950,7 @@ var SpriteGen = (function () {
   }
 
   function genPotion() {
-    var c = canvas(20, 24), ctx = c.getContext('2d');
+    var c = canvas(20, 24), ctx = ctx2d(c);
     // Cork
     ctx.fillStyle = '#8a6040'; ctx.fillRect(8,4,5,4);
     ctx.fillStyle = '#6a4020'; ctx.fillRect(8,4,5,1);
@@ -967,7 +968,7 @@ var SpriteGen = (function () {
   }
 
   function genWeapon() {
-    var c = canvas(24, 24), ctx = c.getContext('2d');
+    var c = canvas(24, 24), ctx = ctx2d(c);
     // Blade
     ctx.fillStyle = '#d0d0d8'; ctx.fillRect(4,2,4,14);
     ctx.fillStyle = '#b0b0b8'; ctx.fillRect(6,2,2,14);
@@ -986,7 +987,7 @@ var SpriteGen = (function () {
   }
 
   function genArmor() {
-    var c = canvas(24, 24), ctx = c.getContext('2d');
+    var c = canvas(24, 24), ctx = ctx2d(c);
     // Chest plate
     ctx.fillStyle = '#6a6878'; ctx.beginPath(); ctx.ellipse(12,13,9,8,0,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = '#7a7888';
@@ -1009,7 +1010,7 @@ var SpriteGen = (function () {
   // ── BOSS: THE HOARDER ────────────────────────────────────────────────────
   // 48×48 sprite — hunched figure buried under piled junk
   function genHoarder() {
-    var c = canvas(48, 48), ctx = c.getContext('2d');
+    var c = canvas(48, 48), ctx = ctx2d(c);
     var SKIN = '#b07848', DARK = '#704820', JUNK1 = '#888888', JUNK2 = '#cc9944', JUNK3 = '#446688';
     // Shadow blob
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
@@ -1061,7 +1062,7 @@ var SpriteGen = (function () {
   }
 
   function genRotSticker() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var SHELL = '#3a3018', LIGHT = '#5a4e2a', ACC = '#cc4400', SPOT = '#888866';
     // Ravioli-shaped body — flat oval
     ctx.fillStyle = SHELL;
@@ -1090,7 +1091,7 @@ var SpriteGen = (function () {
   }
 
   function genDangerDingo() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var FUR = '#c8a050', FDARK = '#8a6020', FBELLY = '#e8c880';
     var PAINT = '#111111'; // corpse paint — black face markings
     // Body — low, muscular dog
@@ -1126,7 +1127,7 @@ var SpriteGen = (function () {
   }
 
   function genBrindleGrub() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BODY = '#8a7a4a', BDARK = '#6a5a30', BLIGHT = '#b09a60';
     var RING = '#7a6a38', SEG = '#c8b870', EYE = '#cc3300';
     // Fat segmented worm body — horizontal oval, no legs
@@ -1162,7 +1163,7 @@ var SpriteGen = (function () {
   // ── BOPCA PROTECTOR (merchant NPC) ───────────────────────────────────────
   // Lore: gnome-like, brown hair (green tinge), huge beard, blue apron, paper hat, nametag
   function genBopca() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var HAIR  = '#4a3a18';   // brown with mossy undertone
     var BEARD = '#5a4a28';
     var SKIN  = '#c8906a';
@@ -1247,7 +1248,7 @@ var SpriteGen = (function () {
   }
 
   function genTrogPygmy() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BDY = '#4a7028', DRK = '#2c4a14', LIT = '#6a9038', CLO = '#6a4a18', WOD = '#7a5820';
     // Tail — curves behind lower body
     ctx.strokeStyle = DRK; ctx.lineWidth = 2; ctx.lineCap = 'round';
@@ -1285,7 +1286,7 @@ var SpriteGen = (function () {
   }
 
   function genTrogBasher() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BDY = '#3a5a20', DRK = '#1e3610', LIT = '#5a7a30', MUD = '#5a4020', WOD = '#6a4010';
     // Thick tail
     ctx.strokeStyle = DRK; ctx.lineWidth = 3; ctx.lineCap = 'round';
@@ -1324,7 +1325,7 @@ var SpriteGen = (function () {
   }
 
   function genTrogVirtuoso() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BDY = '#5a6a18', DRK = '#2e3808', LIT = '#7a8a28', ACC = '#cc4488';
     // Thin tail
     ctx.strokeStyle = DRK; ctx.lineWidth = 2; ctx.lineCap = 'round';
@@ -1360,7 +1361,7 @@ var SpriteGen = (function () {
   }
 
   function genScatterer() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BDY = '#6b4423', DRK = '#3d2210', LIT = '#8b6040', SEG = '#4a3018';
     // Oval body — horizontal, cockroach-shaped
     ctx.fillStyle = BDY; ctx.beginPath(); ctx.ellipse(16, 18, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
@@ -1389,7 +1390,7 @@ var SpriteGen = (function () {
   }
 
   function genBadLlama() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var WHL = '#ddd8c0', DRK = '#9a9080', ORN = '#cc4400', BRN = '#887860';
     // Legs — 4 stumpy posts
     rect(ctx, 8,  22, 4, 9, BRN); rect(ctx, 14, 22, 4, 9, BRN);
@@ -1421,7 +1422,7 @@ var SpriteGen = (function () {
   }
 
   function genScatThug() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var GRY = '#888888', DRK = '#333333', MSK = '#111111', SKN = '#ccaa80', SPR = '#cccccc';
     // Legs — bipedal
     rect(ctx, 11, 21, 5, 9, DRK); rect(ctx, 17, 21, 5, 9, DRK);
@@ -1460,7 +1461,7 @@ var SpriteGen = (function () {
   // ── CLURICHAUN (Floor 2) — small troll, ranged slingshot, inflicts The Taint ──
   // Lore: oversized head, hook nose, ruddy cheeks, tattered green overalls, pilgrim shoes
   function genClurichaun() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var SKIN  = '#c06848', SKIND = '#9a4828';
     var GRPN  = '#2a5818'; // green overalls
     var GRPNL = '#3a6a24';
@@ -1536,7 +1537,7 @@ var SpriteGen = (function () {
   // ── BRINDLED VESPA (Floor 2) — evolved grub, huge hornet + grasping arms ──
   // Lore: giant hornet body, pair of arms with clawed fingers, top face still looks like brindle grub
   function genBrindledVespa() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BODY  = '#c88820', BODYD = '#8a5510', BODYL = '#e8aa30';
     var WING  = 'rgba(180,220,255,0.55)';
     var ARM   = '#b07018', CLAW = '#6a3808';
@@ -1588,7 +1589,7 @@ var SpriteGen = (function () {
   // ── KOBOLD RIDER (Floor 2) — armored chihuahua-like, beer-can-tab chainmail, lance ──
   // Lore: size of chihuahua standing upright, nearly identical DNA, chainmail of beer can tabs
   function genKoboldRider() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var FUR   = '#c8a868', FURD = '#8a6830', FURL = '#e8c888';
     var MAIL  = '#8a9898'; // beer-can-tab chainmail
     var MAILD = '#5a6868';
@@ -1662,7 +1663,7 @@ var SpriteGen = (function () {
   // Lore: floating brain with tentacles underneath, looks like jellyfish/mini-blimp.
   // Moves slowly. Psionic attack causes debilitating headache. Physically weak — punch splatters.
   function genMindHorror() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var BRAIN = '#c878a0', BRAIND = '#a05078', BRAINL = '#e8a0c8';
     var VEIN  = '#882060';
     var TENT  = 'rgba(180,100,160,0.7)';
@@ -1719,7 +1720,7 @@ var SpriteGen = (function () {
   // Lore: miniature 40-something woman, hummingbird wings, leaf pantsuit, no weapons.
   // Crow-sized. Manages clurichaun workers. Disease-immune.
   function genLaminakElite() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var SKIN = '#d4a070', SKIND = '#b08050', HAIR = '#553020';
     var LEAF  = '#5a8c30', LEAFD = '#3a5c18', LEAFL = '#88cc50';
     var WING  = 'rgba(180,230,255,0.55)', WINGD = 'rgba(100,180,220,0.8)';
@@ -1773,7 +1774,7 @@ var SpriteGen = (function () {
   // Lore: communal brain entity. Pink tentacles, each covered in human-shaped screaming mouths.
   // Breaks through walls. Cannot see. Swings blindly. Larger than a neighborhood boss.
   function genKrakarenClone() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     var PINK   = '#e060a0', PINKD = '#b03070', PINKL = '#f890c8';
     var MOUTH  = '#cc1040', TEETH = '#f8f0e0', DARK = '#600020';
 
@@ -1833,7 +1834,7 @@ var SpriteGen = (function () {
 
   // ── MAILBOX (safe rooms Floor 2+) — standard black mailbox with red flag ──
   function genMailbox() {
-    var c = canvas(T, T), ctx = c.getContext('2d');
+    var c = canvas(T, T), ctx = ctx2d(c);
     // Pole
     ctx.fillStyle = '#666666'; ctx.fillRect(15, 14, 3, 18);
     // Box body — standard mailbox shape

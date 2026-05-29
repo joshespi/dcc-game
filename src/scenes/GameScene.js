@@ -516,6 +516,12 @@ var GameScene = new Phaser.Class({
 
     // ── Fade in ──────────────────────────────────────────────────────────────
     this.cameras.main.fadeIn(500, 0, 0, 0);
+
+    // Launch UIScene now that GameScene is fully initialized. On floor transitions
+    // _descend stopped it before restart; on cold start it isn't running yet.
+    if (!this.scene.isActive('UIScene')) {
+      this.scene.launch('UIScene');
+    }
   },
 
   _findSpeakerSprite: function (speaker) {
@@ -2277,6 +2283,7 @@ var GameScene = new Phaser.Class({
   _descend: function () {
     var scene = this;
     var nextFloor = this.currentFloor + 1;
+    this.currentFloor = nextFloor; // advance now so autosave can't clobber with old floor
     this.status.addViews(300000);
     this.status.addFollowers(3000);
     // Floor 2 entry: Borant activates social features — boost to meaningful numbers
@@ -2312,9 +2319,6 @@ var GameScene = new Phaser.Class({
     this.time.delayedCall(750, function () {
       scene.scene.stop('UIScene');
       scene.scene.restart({ floor: nextFloor });
-      scene.time.delayedCall(50, function () {
-        scene.scene.launch('UIScene');
-      });
     });
   },
 
