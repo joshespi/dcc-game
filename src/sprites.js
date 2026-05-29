@@ -1406,6 +1406,207 @@ var SpriteGen = (function () {
     return c;
   }
 
+  // ── CLURICHAUN (Floor 2) — small troll, ranged slingshot, inflicts The Taint ──
+  // Lore: oversized head, hook nose, ruddy cheeks, tattered green overalls, pilgrim shoes
+  function genClurichaun() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var SKIN  = '#c06848', SKIND = '#9a4828';
+    var GRPN  = '#2a5818'; // green overalls
+    var GRPNL = '#3a6a24';
+    var NOSE  = '#cc3a2a'; // bulbous red nose
+    var HAIR  = '#1a0e06'; // dark curly hair
+    var SHOE  = '#2a1e0a'; // buckle shoes
+
+    // Legs + buckle shoes
+    rect(ctx, 11, 22, 4, 8, GRPN); rect(ctx, 17, 22, 4, 8, GRPN);
+    rect(ctx, 9, 28, 6, 4, SHOE);  rect(ctx, 17, 28, 6, 4, SHOE);
+    // Buckles — small gold squares
+    ctx.fillStyle = '#c8a020';
+    ctx.fillRect(10, 30, 3, 2); ctx.fillRect(18, 30, 3, 2);
+
+    // Torso — tattered green overalls
+    ctx.fillStyle = GRPN;
+    ctx.beginPath(); ctx.ellipse(16, 18, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = GRPNL;
+    ctx.beginPath(); ctx.ellipse(15, 17, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // Ragged hem lines
+    ctx.strokeStyle = '#1a3a0a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(10, 22); ctx.lineTo(13, 24); ctx.lineTo(16, 22); ctx.lineTo(19, 24); ctx.lineTo(22, 22); ctx.stroke();
+
+    // Arms — one raised with slingshot, one down
+    rect(ctx, 4, 15, 6, 4, SKIN); // left arm (slingshot hand)
+    rect(ctx, 22, 16, 5, 4, SKIN); // right arm (down)
+    // Slingshot — Y-fork
+    ctx.strokeStyle = '#6a4010'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(4, 12); ctx.lineTo(2, 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(4, 12); ctx.lineTo(7, 8); ctx.stroke();
+    ctx.strokeStyle = '#8a7060'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(2, 8); ctx.lineTo(7, 8); ctx.stroke();
+    // Rock projectile hint
+    ctx.fillStyle = '#888070'; ctx.beginPath(); ctx.arc(4, 10, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Neck
+    rect(ctx, 13, 11, 6, 5, SKIN);
+
+    // Oversized head — much bigger than body
+    ctx.fillStyle = SKIN;
+    ctx.beginPath(); ctx.ellipse(16, 7, 9, 8, 0, 0, Math.PI * 2); ctx.fill();
+    // Ruddy cheeks
+    ctx.fillStyle = 'rgba(200,80,60,0.35)';
+    ctx.beginPath(); ctx.ellipse(9, 8, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(23, 8, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Curly black hair
+    ctx.fillStyle = HAIR;
+    ctx.beginPath(); ctx.arc(16, 2, 7, Math.PI, 0, false); ctx.fill();
+    circle(ctx, 10, 4, 3, HAIR); circle(ctx, 22, 4, 3, HAIR);
+    circle(ctx, 13, 2, 3, HAIR); circle(ctx, 19, 2, 3, HAIR); circle(ctx, 16, 0, 3, HAIR);
+
+    // Hook nose — prominent
+    ctx.fillStyle = NOSE;
+    ctx.beginPath(); ctx.moveTo(13, 9); ctx.lineTo(15, 13); ctx.lineTo(19, 13); ctx.lineTo(20, 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#aa2a1a';
+    ctx.beginPath(); ctx.arc(17, 13, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Eyes — beady, few teeth
+    ctx.fillStyle = '#221100';
+    ctx.fillRect(11, 6, 3, 3); ctx.fillRect(19, 6, 3, 3);
+    ctx.fillStyle = '#ffeecc';
+    ctx.fillRect(13, 12, 2, 2); ctx.fillRect(17, 12, 2, 2); // only a couple teeth
+
+    // Sneezing lime-green goo (The Taint aura hint)
+    ctx.fillStyle = 'rgba(80,200,40,0.45)';
+    ctx.beginPath(); ctx.ellipse(16, 14, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+
+    outline(ctx, '#0a1804', T, T);
+    return c;
+  }
+
+  // ── BRINDLED VESPA (Floor 2) — evolved grub, huge hornet + grasping arms ──
+  // Lore: giant hornet body, pair of arms with clawed fingers, top face still looks like brindle grub
+  function genBrindledVespa() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var BODY  = '#c88820', BODYD = '#8a5510', BODYL = '#e8aa30';
+    var WING  = 'rgba(180,220,255,0.55)';
+    var ARM   = '#b07018', CLAW = '#6a3808';
+    var GRB   = '#8a7a4a'; // grub-head remnant coloring
+
+    // Wings — translucent, wasp-style
+    ctx.fillStyle = WING;
+    ctx.beginPath(); ctx.ellipse(9, 10, 8, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(23, 10, 8, 4, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, 14, 7, 3, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(24, 14, 7, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+
+    // Abdomen — banded yellow/black wasp
+    ctx.fillStyle = BODY;
+    ctx.beginPath(); ctx.ellipse(16, 24, 7, 9, 0, 0, Math.PI * 2); ctx.fill();
+    // Black bands
+    ctx.fillStyle = '#221100';
+    ctx.fillRect(10, 20, 12, 2); ctx.fillRect(10, 24, 12, 2); ctx.fillRect(10, 28, 12, 2);
+    // Stinger tip
+    ctx.fillStyle = BODYD;
+    ctx.beginPath(); ctx.moveTo(14, 32); ctx.lineTo(18, 32); ctx.lineTo(16, 36); ctx.closePath(); ctx.fill();
+
+    // Thorax
+    ctx.fillStyle = BODYL;
+    ctx.beginPath(); ctx.ellipse(16, 15, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Grasping arms (the unsettling part — grub arms on a hornet)
+    rect(ctx, 4, 14, 6, 3, ARM); rect(ctx, 22, 14, 6, 3, ARM);
+    // Clawed fingers
+    ctx.fillStyle = CLAW;
+    ctx.fillRect(2, 14, 3, 2); ctx.fillRect(2, 17, 3, 2); ctx.fillRect(4, 12, 2, 3); // left claws
+    ctx.fillRect(27, 14, 3, 2); ctx.fillRect(27, 17, 3, 2); ctx.fillRect(26, 12, 2, 3); // right claws
+
+    // Head — still looks like a brindle grub head (lore-accurate)
+    ctx.fillStyle = GRB;
+    ctx.beginPath(); ctx.ellipse(16, 8, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#b09a60';
+    ctx.beginPath(); ctx.ellipse(16, 7, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // Bead eyes (grub remnant)
+    ctx.fillStyle = '#cc3300'; ctx.fillRect(13, 6, 2, 2); ctx.fillRect(18, 6, 2, 2);
+    // Acid spit goo hint — white droplets below mouth
+    ctx.fillStyle = 'rgba(255,255,220,0.8)';
+    ctx.fillRect(15, 11, 2, 2); ctx.fillRect(13, 13, 2, 1); ctx.fillRect(17, 13, 2, 1);
+
+    outline(ctx, '#180800', T, T);
+    return c;
+  }
+
+  // ── KOBOLD RIDER (Floor 2) — armored chihuahua-like, beer-can-tab chainmail, lance ──
+  // Lore: size of chihuahua standing upright, nearly identical DNA, chainmail of beer can tabs
+  function genKoboldRider() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var FUR   = '#c8a868', FURD = '#8a6830', FURL = '#e8c888';
+    var MAIL  = '#8a9898'; // beer-can-tab chainmail
+    var MAILD = '#5a6868';
+    var SPIKE = '#c0c0b0'; // spike on cap
+    var LANCE = '#7a5020';
+
+    // Lance — long diagonal shaft
+    ctx.strokeStyle = LANCE; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(2, 28); ctx.lineTo(28, 4); ctx.stroke();
+    // Lance tip
+    ctx.fillStyle = '#d0c0a0';
+    ctx.beginPath(); ctx.moveTo(26, 2); ctx.lineTo(30, 5); ctx.lineTo(28, 7); ctx.closePath(); ctx.fill();
+    // Feather on lance (decorative)
+    ctx.strokeStyle = '#cc4422'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(12, 22); ctx.lineTo(8, 26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, 22); ctx.lineTo(14, 26); ctx.stroke();
+
+    // Legs — short, stubby, armored greaves
+    rect(ctx, 11, 22, 4, 7, MAILD); rect(ctx, 17, 22, 4, 7, MAILD);
+    // Small feet
+    rect(ctx, 9, 27, 6, 3, FURD); rect(ctx, 17, 27, 6, 3, FURD);
+
+    // Body — chainmail torso
+    ctx.fillStyle = MAIL;
+    ctx.beginPath(); ctx.ellipse(16, 18, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // Tab pattern (beer can tabs) — small horizontal lines
+    ctx.strokeStyle = MAILD; ctx.lineWidth = 1;
+    for (var my = 14; my <= 22; my += 2) {
+      ctx.beginPath(); ctx.moveTo(11, my); ctx.lineTo(21, my); ctx.stroke();
+    }
+    // Pauldrons
+    circle(ctx, 10, 16, 3, MAILD); circle(ctx, 22, 16, 3, MAILD);
+
+    // Arms — one gripping lance, one out
+    rect(ctx, 5, 15, 5, 3, MAIL); rect(ctx, 22, 14, 6, 3, MAIL);
+
+    // Neck
+    rect(ctx, 14, 11, 5, 5, FUR);
+
+    // Head — chihuahua-like, large ears, tiny body ratio
+    ctx.fillStyle = FUR;
+    ctx.beginPath(); ctx.ellipse(16, 8, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    // Big ears — chihuahua style
+    ctx.fillStyle = FURD;
+    ctx.beginPath(); ctx.moveTo(9, 5); ctx.lineTo(5, 0); ctx.lineTo(12, 4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(23, 5); ctx.lineTo(27, 0); ctx.lineTo(20, 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffccaa';
+    ctx.beginPath(); ctx.moveTo(9, 5); ctx.lineTo(6, 1); ctx.lineTo(11, 4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(23, 5); ctx.lineTo(26, 1); ctx.lineTo(21, 4); ctx.closePath(); ctx.fill();
+
+    // Spiked cap
+    ctx.fillStyle = MAILD;
+    ctx.beginPath(); ctx.ellipse(16, 5, 6, 3, 0, 0, Math.PI); ctx.fill(); // half circle cap
+    ctx.fillStyle = SPIKE;
+    ctx.beginPath(); ctx.moveTo(14, 3); ctx.lineTo(18, 3); ctx.lineTo(16, -1); ctx.closePath(); ctx.fill();
+
+    // Face — angry chihuahua
+    ctx.fillStyle = '#221100';
+    ctx.fillRect(12, 7, 3, 3); ctx.fillRect(18, 7, 3, 3); // eyes
+    ctx.fillStyle = '#cc2200'; ctx.fillRect(13, 8, 2, 2); ctx.fillRect(19, 8, 2, 2); // irises
+    ctx.fillStyle = FURL; // snout
+    ctx.beginPath(); ctx.ellipse(16, 11, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#331100'; // angry mouth
+    ctx.beginPath(); ctx.moveTo(12, 12); ctx.lineTo(16, 13); ctx.lineTo(20, 12); ctx.stroke();
+
+    outline(ctx, '#2a1a00', T, T);
+    return c;
+  }
+
   // ── REGISTER ALL ─────────────────────────────────────────────────────────
 
   function init(scene) {
@@ -1443,9 +1644,12 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('scatterer',      genScatterer());
     scene.textures.addCanvas('bad_llama',      genBadLlama());
     scene.textures.addCanvas('scat_thug',      genScatThug());
-    scene.textures.addCanvas('brindle_grub', genBrindleGrub());
-    scene.textures.addCanvas('danger_dingo', genDangerDingo());
-    scene.textures.addCanvas('bopca',        genBopca());
+    scene.textures.addCanvas('brindle_grub',    genBrindleGrub());
+    scene.textures.addCanvas('danger_dingo',    genDangerDingo());
+    scene.textures.addCanvas('bopca',           genBopca());
+    scene.textures.addCanvas('clurichaun',      genClurichaun());
+    scene.textures.addCanvas('brindled_vespa',  genBrindledVespa());
+    scene.textures.addCanvas('kobold_rider',    genKoboldRider());
   }
 
   return { init: init };

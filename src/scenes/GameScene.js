@@ -242,7 +242,15 @@ var GameScene = new Phaser.Class({
       if (dmg > 0) {
         scene._lastKiller = sourceName;
         scene._onCarlHurt(dmg, 'projectile');
-        if (debuffType) scene.status.applyDebuff(debuffType, 8000, 1, 2000);
+        if (debuffType === DEBUFF_TAINT) {
+          if (!scene.status.hasDebuff(DEBUFF_TAINT)) {
+            scene.status.applyDebuff(DEBUFF_TAINT, 300000, 0, 99999);
+            scene._floatText(scene.carl.x(), scene.carl.y() - 32, 'THE TAINT!', '#44dd22', 13);
+            scene.messages.push('CLURICHAUN\'S SNEEZE COATS YOU IN LIME-GREEN OIL. THE TAINT: ALL HEALING BLOCKED FOR 5 MINUTES. DONUT IS DISGUSTED.');
+          }
+        } else if (debuffType) {
+          scene.status.applyDebuff(debuffType, 8000, 1, 2000);
+        }
       }
     });
 
@@ -872,13 +880,21 @@ var GameScene = new Phaser.Class({
     var scene = this;
     var enemy = EnemyFactory.create(this, type, x, y, floorNum);
     this.physics.add.collider(enemy.sprite, this.wallLayer);
-    if (enemy instanceof EnemyFactory.FairyEnemy)    enemy.setMissileGroup(this.enemyMissiles);
-    if (enemy instanceof EnemyFactory.BadLlamaEnemy) enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy instanceof EnemyFactory.FairyEnemy)         enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy instanceof EnemyFactory.BadLlamaEnemy)      enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy instanceof EnemyFactory.ClurichaunnEnemy)   enemy.setMissileGroup(this.enemyMissiles);
+    if (enemy instanceof EnemyFactory.BrindledVespaEnemy) enemy.setMissileGroup(this.enemyMissiles);
     if (enemy instanceof EnemyFactory.RotStickerEnemy) {
       enemy.setKnockdownCallback(function (dmg) { scene._applyRotStickerBlast(dmg); });
     }
     if (enemy instanceof EnemyFactory.DangerDingoEnemy) {
       enemy.onBark(function (msg) { scene.messages.push(msg); });
+    }
+    if (enemy instanceof EnemyFactory.BrindleGrubEnemy) {
+      enemy.setPupaCallback(function (px, py) {
+        scene.messages.push('A BRINDLE GRUB PUPA HATCHES. A BRINDLED VESPA EMERGES. DONUT SUGGESTS RUNNING.');
+        scene._spawnSingleEnemy('brindled_vespa', px, py, scene.currentFloor);
+      });
     }
     enemy.onDeath(function (dead) { scene._onEnemyDeath(dead); });
     this.enemies.push(enemy);
@@ -1073,8 +1089,11 @@ var GameScene = new Phaser.Class({
     'Trog Basher':   [{ name: 'Trog Scale', quality: 'common' }, { name: 'Trog Knucklebone', quality: 'common' }],
     'Trog Virtuoso': [{ name: 'Trog Venom Sac', quality: 'uncommon' }, { name: 'Trog Tongue', quality: 'uncommon' }],
     'Scatterer':     [{ name: 'Scatterer Carapace', quality: 'common' }, { name: 'Scatterer Hemolymph', quality: 'uncommon' }],
-    'Bad Llama':     [{ name: 'Llama Bile', quality: 'uncommon' }, { name: 'Lava Saliva', quality: 'uncommon' }],
-    'Scat Thug':     [{ name: 'Raccoon Pelt', quality: 'common' }, { name: 'Needle Spear', quality: 'common' }],
+    'Bad Llama':      [{ name: 'Llama Bile', quality: 'uncommon' }, { name: 'Lava Saliva', quality: 'uncommon' }],
+    'Scat Thug':      [{ name: 'Raccoon Pelt', quality: 'common' }, { name: 'Needle Spear', quality: 'common' }],
+    'Clurichaun':     [{ name: 'MLM Pamphlet', quality: 'common' }, { name: 'Clay Jug Shard', quality: 'common' }],
+    'Brindled Vespa': [{ name: 'Vespa Chitin', quality: 'uncommon' }, { name: 'Vespa Gland', quality: 'uncommon' }],
+    'Kobold Rider':   [{ name: 'Beer-Can Chainmail', quality: 'common' }, { name: 'Kobold Lance Tip', quality: 'common' }],
   },
 
   _craftingDropForEnemy: function (typeName) {

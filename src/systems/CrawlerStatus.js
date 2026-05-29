@@ -1,5 +1,6 @@
 var DEBUFF_POISON  = 'poison';
 var DEBUFF_SEPTIC  = 'septic';
+var DEBUFF_TAINT   = 'taint';   // cannot heal by any method for duration
 
 // Tracks Carl's level, stats, HP, XP, inventory — the dungeon's crawler record
 var CrawlerStatus = (function () {
@@ -122,6 +123,7 @@ var CrawlerStatus = (function () {
   };
 
   CrawlerStatus.prototype.heal = function (amount) {
+    if (this.hasDebuff(DEBUFF_TAINT)) return 0;
     var prev = this.hp;
     this.hp = Math.min(this.maxHp, this.hp + amount);
     return this.hp - prev;

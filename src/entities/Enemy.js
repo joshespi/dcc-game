@@ -810,18 +810,61 @@ var EnemyFactory = (function () {
     bodyW: 20, bodyH: 12,
   };
 
+  var GRUB_PUPA_AFTER = 2;    // corpses eaten before entering pupa
+  var GRUB_PUPA_MS   = 60000; // 60s pupa countdown (compressed from lore's 10 hours)
+
   function BrindleGrubEnemy(scene, x, y) {
     Enemy.call(this, scene, x, y, DEFS.brindle_grub);
     this.isMelee = false;
-    this._targetCorpse = null;
+    this._targetCorpse  = null;
+    this._corpsesEaten  = 0;
+    this._inPupa        = false;
+    this._pupaStartedAt = 0;
+    this._onSpawnVespa  = null; // callback(x, y) set by GameScene
   }
   BrindleGrubEnemy.prototype = Object.create(Enemy.prototype);
   BrindleGrubEnemy.prototype.constructor = BrindleGrubEnemy;
+
+  BrindleGrubEnemy.prototype.setPupaCallback = function (fn) { this._onSpawnVespa = fn; };
+
+  BrindleGrubEnemy.prototype._enterPupa = function () {
+    if (this._inPupa) return;
+    this._inPupa = true;
+    this._pupaStartedAt = Date.now();
+    this.sprite.setVelocity(0, 0);
+    // Pupa visual: pulse red/yellow, grow slightly
+    var spr = this.sprite;
+    this.scene.tweens.add({
+      targets: spr, scaleX: 1.6, scaleY: 1.4,
+      duration: 800, ease: 'Quad.easeOut',
+    });
+    this.scene.tweens.add({
+      targets: spr, alpha: 0.6, duration: 500,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+  };
 
   BrindleGrubEnemy.prototype.update = function (carlX, carlY, delta, missileGroup, corpses) {
     if (this._dead || !this.sprite.active) return;
 
     var now = Date.now();
+
+    // Pupa stage — immobile, countdown, then hatch
+    if (this._inPupa) {
+      this.sprite.setVelocity(0, 0);
+      var secsLeft = Math.ceil((this._pupaStartedAt + GRUB_PUPA_MS - now) / 1000);
+      var flash = now % 600 < 250;
+      this.sprite.setTint(flash ? 0xff4400 : 0xffcc00);
+      if (now >= this._pupaStartedAt + GRUB_PUPA_MS) {
+        // Hatch — 50% chance per lore (post-patch)
+        if (Math.random() < 0.5 && this._onSpawnVespa) {
+          this._onSpawnVespa(this.sprite.x, this.sprite.y);
+        }
+        this._die();
+      }
+      return;
+    }
+
     var nearest = this._cachedTarget;
     var nearDist2 = Infinity;
     var cachedValid = nearest && nearest.sprite && nearest.sprite.active && !nearest._consumed;
@@ -857,13 +900,17 @@ var EnemyFactory = (function () {
           nearest._grubsEating = (nearest._grubsEating || 0) + 1;
         }
         if (nearest._grubsEating >= 2) {
-          nearest._consumed = true; // prevent double-destroy in same frame
+          nearest._consumed = true;
+          // Credit all eating grubs — any grub touching this corpse gets a meal
+          // (tracked via _grubsEating being set on the corpse)
+          this._corpsesEaten++;
           if (nearest.sprite) { nearest.sprite.destroy(); nearest.sprite = null; }
           if (corpses) {
             for (var ci = corpses.length - 1; ci >= 0; ci--) {
               if (corpses[ci] === nearest) { corpses.splice(ci, 1); break; }
             }
           }
+          if (this._corpsesEaten >= GRUB_PUPA_AFTER) this._enterPupa();
         }
       }
       this.sprite.setVelocity(0, 0);
@@ -884,6 +931,121 @@ var EnemyFactory = (function () {
         this.sprite.setVelocity((cx / cd) * this.speed * 0.5, (cy / cd) * this.speed * 0.5);
       }
     }
+  };
+
+  // ── Clurichaun Rev-Up Consultant (Floor 2) — ranged slingshot, inflicts The Taint ──
+  // Lore: small troll-like, oversized head, hook nose, ruddy cheeks, green overalls, pilgrim shoes.
+  // Sneezes lime-green oily residue (The Taint) that blocks all healing for 5 minutes.
+
+  DEFS.clurichaun = {
+    name: 'Clurichaun', texture: 'clurichaun', hp: 18, damage: 5,
+    speed: 60, xp: 20,
+    aggroRange: 240, attackRange: 180, attackCd: 2000,
+    isMelee: false, missileSpeed: 150,
+    bodyW: 16, bodyH: 18,
+  };
+
+  function ClurichaunnEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.clurichaun);
+    this._missileGroup = null;
+  }
+  ClurichaunnEnemy.prototype = Object.create(Enemy.prototype);
+  ClurichaunnEnemy.prototype.constructor = ClurichaunnEnemy;
+
+  ClurichaunnEnemy.prototype.setMissileGroup = function (g) { this._missileGroup = g; };
+
+  ClurichaunnEnemy.prototype._doAttack = function (carlX, carlY) {
+    var m = _fireEnemyMissile(this, carlX, carlY, {
+      tint: 0x44dd22, sourceName: 'Clurichaun', lifetimeMs: 1400, applyDebuff: DEBUFF_TAINT,
+    });
+    if (m) {
+      // Override damage on missile — Taint is the real threat, not the hit
+      m.damage = Math.max(1, this.damage);
+      _playHitSound(0.06);
+    }
+  };
+
+  // ── Brindled Vespa (Floor 2) — hatched from Brindle Grub pupa, spits acid ──
+  // Lore: giant hornet body, pair of grasping arms with clawed fingers, top face still looks like a brindle grub.
+
+  DEFS.brindled_vespa = {
+    name: 'Brindled Vespa', texture: 'brindled_vespa', hp: 24, damage: 8,
+    speed: 100, xp: 18,
+    aggroRange: 200, attackRange: 160, attackCd: 1800,
+    isMelee: false, missileSpeed: 180,
+    bodyW: 18, bodyH: 16,
+  };
+
+  function BrindledVespaEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.brindled_vespa);
+    this._missileGroup = null;
+  }
+  BrindledVespaEnemy.prototype = Object.create(Enemy.prototype);
+  BrindledVespaEnemy.prototype.constructor = BrindledVespaEnemy;
+
+  BrindledVespaEnemy.prototype.setMissileGroup = function (g) { this._missileGroup = g; };
+
+  BrindledVespaEnemy.prototype._doAttack = function (carlX, carlY) {
+    if (_fireEnemyMissile(this, carlX, carlY, {
+      tint: 0xffee44, sourceName: 'Brindled Vespa', lifetimeMs: 1500, applyDebuff: DEBUFF_SEPTIC,
+    })) _playHitSound(0.07);
+  };
+
+  // ── Kobold Rider (Floor 2) — armored chihuahua, lance charges on dingoes ──
+  // Lore: size of a chihuahua standing upright, chainmail of beer-can tabs, tiny spiked cap, lance.
+
+  DEFS.kobold_rider = {
+    name: 'Kobold Rider', texture: 'kobold_rider', hp: 22, damage: 11,
+    speed: 95, xp: 22,
+    aggroRange: 200, attackRange: 30, attackCd: 1000,
+    bodyW: 16, bodyH: 18,
+  };
+
+  function KoboldRiderEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.kobold_rider);
+    this._charging     = false;
+    this._chargeUntil  = 0;
+    this._chargeCd     = 0;
+    this._chargeCdMs   = 3500;
+    this._baseSpeed    = this.speed;
+  }
+  KoboldRiderEnemy.prototype = Object.create(Enemy.prototype);
+  KoboldRiderEnemy.prototype.constructor = KoboldRiderEnemy;
+
+  KoboldRiderEnemy.prototype.update = function (carlX, carlY, delta, missileGroup) {
+    if (this._dead || !this.sprite.active) return;
+    var now = Date.now();
+    if (this._stunUntil && now < this._stunUntil) { this.sprite.setVelocity(0, 0); return; }
+    if (this._everHit) this._updateHpBar();
+
+    var dx = carlX - this.sprite.x, dy = carlY - this.sprite.y;
+    var d2 = dx * dx + dy * dy;
+
+    if (d2 < this._aggroR2 && !this._aggroed) this._tryAggro();
+
+    var chargeR2 = (this.aggroRange * 1.3) * (this.aggroRange * 1.3);
+    if (this._aggroed && !this._charging && now >= this._chargeCd && d2 < chargeR2) {
+      this._charging    = true;
+      this._chargeUntil = now + 650;
+      this.speed        = this._baseSpeed * 2.6;
+      this.sprite.setTint(0xffcc00);
+    }
+
+    if (this._charging) {
+      if (now < this._chargeUntil) {
+        if (d2 > 1) {
+          var dist = Math.sqrt(d2);
+          this.sprite.setVelocity((dx / dist) * this.speed, (dy / dist) * this.speed);
+        }
+        return;
+      }
+      this._charging  = false;
+      this.speed      = this._baseSpeed;
+      this.sprite.clearTint();
+      this._chargeCd  = now + this._chargeCdMs;
+    }
+
+    Enemy.prototype.update.call(this, carlX, carlY, delta, missileGroup);
   };
 
   // ── Factory ────────────────────────────────────────────────────────────
@@ -908,11 +1070,14 @@ var EnemyFactory = (function () {
     if (type === 'goblin')       return new GoblinEnemy(scene, x, y, scaledDef);
     if (type === 'crack_camel')  return new CrackCamelEnemy(scene, x, y, scaledDef);
     if (type === 'skeleton')     return new SkeletonEnemy(scene, x, y, scaledDef);
-    if (type === 'brindle_grub') return new BrindleGrubEnemy(scene, x, y);
-    if (type === 'danger_dingo') return new DangerDingoEnemy(scene, x, y, scaledDef);
-    if (type === 'scatterer')    return new ScattererEnemy(scene, x, y, scaledDef);
-    if (type === 'bad_llama')    return new BadLlamaEnemy(scene, x, y, scaledDef);
-    if (type === 'scat_thug')    return new Enemy(scene, x, y, scaledDef);
+    if (type === 'brindle_grub')   return new BrindleGrubEnemy(scene, x, y);
+    if (type === 'danger_dingo')   return new DangerDingoEnemy(scene, x, y, scaledDef);
+    if (type === 'scatterer')      return new ScattererEnemy(scene, x, y, scaledDef);
+    if (type === 'bad_llama')      return new BadLlamaEnemy(scene, x, y, scaledDef);
+    if (type === 'scat_thug')      return new Enemy(scene, x, y, scaledDef);
+    if (type === 'clurichaun')     return new ClurichaunnEnemy(scene, x, y, scaledDef);
+    if (type === 'brindled_vespa') return new BrindledVespaEnemy(scene, x, y, scaledDef);
+    if (type === 'kobold_rider')   return new KoboldRiderEnemy(scene, x, y, scaledDef);
     return new Enemy(scene, x, y, scaledDef);
   }
 
@@ -946,8 +1111,8 @@ var EnemyFactory = (function () {
   // Types available per floor
   function typesForFloor(floorNum) {
     if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_basher', 'trog_virtuoso', 'scatterer', 'scatterer', 'bad_llama', 'scat_thug'];
-    // Floor 2: skeletons introduced, crack camels gone
-    if (floorNum === 2) return ['skeleton', 'goblin', 'rat', 'fairy', 'skeleton', 'danger_dingo', 'brindle_grub']; // skeleton/danger_dingo weighted
+    // Floor 2: skeletons + dingoes + clurichauns + kobold riders + vespas (from pupa)
+    if (floorNum === 2) return ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider'];
     return ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];
   }
 
@@ -1015,6 +1180,9 @@ var EnemyFactory = (function () {
     DangerDingoEnemy: DangerDingoEnemy,
     ScattererEnemy: ScattererEnemy,
     BadLlamaEnemy: BadLlamaEnemy,
+    ClurichaunnEnemy: ClurichaunnEnemy,
+    BrindledVespaEnemy: BrindledVespaEnemy,
+    KoboldRiderEnemy: KoboldRiderEnemy,
     resetSwarms: _resetScattererSwarm,
   };
 })();
