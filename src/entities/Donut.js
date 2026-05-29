@@ -5,7 +5,7 @@ var Donut = (function () {
   var FOLLOW_SPEED = 160;
   var SPELL_CD     = 2200; // ms between Magic Missiles
   var PASSIVE_TICK = 3000; // ms between passive heals (if Carl hasn't taken damage)
-  var MP_REGEN_TICK = 1000; // check MP regen every second
+  var MP_REGEN_TICK = 30000; // MP regen every 30s — INT 3 ≈ 2/min (lore: 1/hr, game = 120x compressed)
   var MISSILE_SPD  = 260;
 
   function Donut(scene, x, y, status) {
@@ -40,7 +40,7 @@ var Donut = (function () {
 
   var MISSILE_MP_COST = 4;
   var SURGE_CD        = 8000;
-  var SURGE_MP_COST   = 8;
+  var SURGE_MP_COST   = 2;  // lore: Heal spell costs 2 MP
 
   Donut.prototype.activateSpell = function (carlX, carlY, facing) {
     var now = Date.now();
@@ -76,7 +76,7 @@ var Donut = (function () {
     if (!this.status.spendMp(SURGE_MP_COST)) return 'no_mp';
     this._surgeTimer = now;
 
-    var healAmt = 25 + this.status.stats.int * 5;
+    var healAmt = Math.floor(this.status.maxHp * 0.20);  // lore: heals ~20% max HP
     var healed = this.status.heal(healAmt);
     if (this._onHeal) this._onHeal(healed);
     if (this._onSpell) this._onSpell('heal_surge');
@@ -166,11 +166,11 @@ var Donut = (function () {
       }
     }
 
-    // ── MP regen — scales with INT. INT 5 → ~1 MP/s, INT 10 → ~2 MP/s ────────
+    // ── MP regen — INT 3 = ~2 MP/min (120x lore compression: lore = 1/hr)
     if (now - this._mpRegenTimer > MP_REGEN_TICK) {
       this._mpRegenTimer = now;
       if (this.status.mp < this.status.maxMp) {
-        var regenAmt = Math.max(1, Math.floor(this.status.stats.int / 5));
+        var regenAmt = Math.max(1, Math.round(this.status.stats.int * 0.6));
         this.status.regenMp(regenAmt);
       }
     }

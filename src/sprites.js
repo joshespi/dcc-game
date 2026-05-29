@@ -186,6 +186,57 @@ var SpriteGen = (function () {
     return c;
   }
 
+  function tileFloorF2() {
+    // Floor 2: white/light concrete floor, cracked
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    ctx.fillStyle = '#d8d4cc'; ctx.fillRect(0, 0, T, T);
+    // Grout lines
+    ctx.fillStyle = '#b0aca4';
+    ctx.fillRect(0, 10, T, 1); ctx.fillRect(0, 21, T, 1);
+    ctx.fillRect(15, 0, 1, 10); ctx.fillRect(8, 11, 1, 10); ctx.fillRect(22, 11, 1, 10); ctx.fillRect(15, 22, 1, T);
+    // Stone highlights
+    ctx.fillStyle = '#e8e4dc';
+    ctx.fillRect(1, 1, 13, 8); ctx.fillRect(17, 1, 13, 8);
+    ctx.fillRect(1, 12, 5, 7); ctx.fillRect(10, 12, 11, 7); ctx.fillRect(24, 12, 7, 7);
+    ctx.fillRect(1, 23, 13, 7); ctx.fillRect(17, 23, 13, 7);
+    // Cracks (dark lines on white floor — more visible)
+    ctx.fillStyle = '#8a8480';
+    ctx.fillRect(5, 3, 6, 1); ctx.fillRect(9, 4, 3, 2);
+    ctx.fillRect(19, 14, 5, 1); ctx.fillRect(22, 15, 2, 3);
+    ctx.fillRect(3, 25, 4, 1); ctx.fillRect(6, 26, 2, 2);
+    return c;
+  }
+
+  function tileWallF2() {
+    // Floor 2: orange-tinted cinderblock
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    ctx.fillStyle = '#7a4010'; ctx.fillRect(0, 0, T, T);
+    // Cinderblock rows (wider, more industrial than brick)
+    var blocks = [
+      [0, 0, 31, 14, '#8a5020'],
+      [0, 16, 31, 14, '#804818'],
+      [16, 0, 14, 14, '#9a5c28'],
+      [0, 16, 14, 14, '#906020'],
+    ];
+    blocks.forEach(function(b) {
+      ctx.fillStyle = b[4]; ctx.fillRect(b[0], b[1], b[2], b[3]);
+    });
+    // Mortar gaps
+    ctx.fillStyle = '#5a2c08'; ctx.fillRect(0, 14, T, 2); ctx.fillRect(0, 30, T, 2);
+    ctx.fillStyle = '#5a2c08'; ctx.fillRect(15, 0, 1, 14); ctx.fillRect(0, 16, 1, 14);
+    // Top highlight
+    ctx.fillStyle = '#c07840'; ctx.fillRect(0, 0, T, 2);
+    ctx.fillStyle = '#b06030'; ctx.fillRect(16, 0, T - 16, 2);
+    return c;
+  }
+
+  function genTilesetFloor2() {
+    var tiles = [tileFloorF2(), tileWallF2(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
+    var c = canvas(T * tiles.length, T), ctx = c.getContext('2d');
+    tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
+    return c;
+  }
+
   // ── CARL ──────────────────────────────────────────────────────────────────
   // Reference: leather jacket, light-blue heart boxer shorts, bare feet, dark messy hair
   // Sprite size: 48×48 for readability
@@ -1692,6 +1743,7 @@ var SpriteGen = (function () {
 
   function init(scene) {
     scene.textures.addCanvas('tileset',        genTileset());
+    scene.textures.addCanvas('tileset_f2',     genTilesetFloor2());
     scene.textures.addCanvas('carl_down',      genCarl('down'));
     scene.textures.addCanvas('carl_up',        genCarl('up'));
     scene.textures.addCanvas('carl_right',     genCarl('right'));

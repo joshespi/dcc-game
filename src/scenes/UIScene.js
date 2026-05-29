@@ -1522,12 +1522,13 @@ var UIScene = new Phaser.Class({
     }
 
     if (status && this._hudUnlocked) {
-      if (status.views !== this._lastViews || status.followers !== this._lastFollowers || status.gold !== this._lastGold) {
-        this._lastViews = status.views; this._lastFollowers = status.followers; this._lastGold = status.gold;
+      if (status.views !== this._lastViews || status.followers !== this._lastFollowers || status.favorites !== this._lastFavorites || status.gold !== this._lastGold) {
+        this._lastViews = status.views; this._lastFollowers = status.followers; this._lastFavorites = status.favorites; this._lastGold = status.gold;
         var goldLine = status.gold > 0 ? '\n' + status.gold + 'g' : '';
+        var favsLine = (status.floor >= 2 && status.favorites > 0) ? '\n' + _fmtN(status.favorites) + ' favs' : '';
         this._viewsText.setText(
           _fmtN(status.views) + ' views\n' +
-          _fmtN(status.followers) + ' followers' + goldLine
+          _fmtN(status.followers) + ' followers' + favsLine + goldLine
         );
       }
     }

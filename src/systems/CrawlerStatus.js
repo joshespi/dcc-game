@@ -42,10 +42,11 @@ var CrawlerStatus = (function () {
     this.mp    = this.stats.int * 10;
     this.maxMp = this.stats.int * 10;
     this.bossKilledFloor = 0;
-    // Temporary scroll effects — set to 0 by default, non-zero while active
+    // Temporary scroll/buff effects — set to 0 by default, non-zero while active
     this._swiftnessUntil   = 0;
     this._ironSkinUntil    = 0;
     this._ironSkinDefense  = 0;
+    this._dexBuffUntil     = 0;
   }
 
   CrawlerStatus.prototype.addXP = function (amount) {
@@ -108,6 +109,11 @@ var CrawlerStatus = (function () {
   CrawlerStatus.prototype.addViews     = function (n) { this.views     += n; };
   CrawlerStatus.prototype.addFollowers = function (n) { this.followers += n; };
   CrawlerStatus.prototype.addFavorites = function (n) { this.favorites += n; };
+
+  CrawlerStatus.prototype.effectiveDex = function () {
+    var bonus = (this._dexBuffUntil && Date.now() < this._dexBuffUntil) ? 1 : 0;
+    return this.stats.dex + bonus;
+  };
 
   CrawlerStatus.prototype.regenMp = function (amount) {
     this.mp = Math.min(this.maxMp, this.mp + amount);

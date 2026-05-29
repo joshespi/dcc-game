@@ -60,7 +60,7 @@ var Carl = (function () {
 
     // ── Movement ──────────────────────────────────────────────────────────
     var vx = 0, vy = 0;
-    var spd = SPEED + this.status.stats.dex * 1.5;
+    var spd = SPEED + this.status.effectiveDex() * 1.5;
     if (this.status.hasDebuff(DEBUFF_SEPTIC)) spd *= 0.72;
     if (this.status._swiftnessUntil && Date.now() < this.status._swiftnessUntil) spd *= 2.0;
 
@@ -147,8 +147,8 @@ var Carl = (function () {
     var now = Date.now();
     if (now - this._iframeTimer < IFRAMES) return 0; // invincible
 
-    // LUCK: 1% per point; Dodge skill: 2% per level
-    var dodgeChance = this.status.stats.luck * 0.01 + (this.status.skills ? this.status.skills.dodge * 0.02 : 0);
+    // LUCK: 1% per point; DEX buff adds 2% dodge; Dodge skill: 2% per level
+    var dodgeChance = this.status.stats.luck * 0.01 + (this.status.skills ? this.status.skills.dodge * 0.02 : 0) + (this.status._dexBuffUntil && Date.now() < this.status._dexBuffUntil ? 0.02 : 0);
     if (Math.random() < dodgeChance) {
       this._iframeTimer = now; // consume iframe so dodge can't rapid-fire
       if (this._onDodge) this._onDodge();

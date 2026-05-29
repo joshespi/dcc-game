@@ -227,7 +227,7 @@ var GameScene = new Phaser.Class({
     // ── Camera ──────────────────────────────────────────────────────────────
     this.cameras.main.setBounds(0, 0, MAP_W * 32, MAP_H * 32);
     this.cameras.main.startFollow(this.carl.getSprite(), true, 0.1, 0.1);
-    this.cameras.main.setBackgroundColor(this.currentFloor >= 2 ? '#1a1410' : '#0a0812');
+    this.cameras.main.setBackgroundColor(this.currentFloor >= 2 ? '#c8b898' : '#0a0812');
 
     // ── Colliders ───────────────────────────────────────────────────────────
     var scene = this;
@@ -368,6 +368,11 @@ var GameScene = new Phaser.Class({
         scene.messages.push(MessageSystem.newCrawler(scene.status.crawlerNumber, scene.status.crawlerName));
       }
       scene.messages.push(MessageSystem.floorEnter(scene.currentFloor));
+      if (scene.currentFloor === 2) {
+        scene.time.delayedCall(2500, function () {
+          scene.messages.push(MessageSystem.socialAnnouncement());
+        });
+      }
     });
 
     // ── Floor timer → stairwell unlock ──────────────────────────────────────
@@ -612,6 +617,20 @@ var GameScene = new Phaser.Class({
       this.messages.push('THE TAINT HAS WORN OFF. HEALING RESTORED. DONUT DECLINES TO COMMENT ON THE SMELL.');
     }
     this._taintWasActive = taintNow;
+
+    // Passive follower decay on Floor 2+ — audience loses interest during idle stretches
+    if (this.currentFloor >= 2) {
+      var now2 = Date.now();
+      if (!this._followerDecayTick) this._followerDecayTick = now2;
+      if (now2 - this._followerDecayTick > 20000) {
+        this._followerDecayTick = now2;
+        var idleSecs = (now2 - (this._lastKillTime || now2)) / 1000;
+        if (idleSecs > 30 && this.status.followers > 100) {
+          var lost = Math.ceil(this.status.followers * 0.003);
+          this.status.followers = Math.max(100, this.status.followers - lost);
+        }
+      }
+    }
 
     if (this.status.debuffs && this.status.debuffs.length > 0) {
       var debuffDmg = this.status.tickDebuffs();
@@ -877,12 +896,11 @@ var GameScene = new Phaser.Class({
   _buildTilemap: function (tiles, mapW, mapH) {
     // Tile indices: 0=floor, 1=wall, 2=stairs, 3=door, 4=start, 5=safe_room
     // All match tileset strip positions directly
+    var tileKey = this.currentFloor >= 2 ? 'tileset_f2' : 'tileset';
     var map = this.make.tilemap({ data: tiles, tileWidth: 32, tileHeight: 32 });
-    var tileset = map.addTilesetImage('tileset', 'tileset', 32, 32, 0, 0);
+    var tileset = map.addTilesetImage(tileKey, tileKey, 32, 32, 0, 0);
     this.groundLayer = map.createLayer(0, tileset, 0, 0);
     this.groundLayer.setDepth(0);
-    // Floor 2: white floors + orange-tinted cinderblock walls per lore
-    if (this.currentFloor >= 2) this.groundLayer.setTint(0xffe8cc);
     this.wallLayer = this.groundLayer;
     // Only walls block movement — all other tile types are walkable
     this.wallLayer.setCollision([1]);
@@ -890,14 +908,24 @@ var GameScene = new Phaser.Class({
 
   _spawnFloorDecor: function (tiles, mapW, mapH) {
     var gr = this.add.graphics().setDepth(1); // just above ground layer (0)
-    // ~4% of floor tiles get a decoration
+    var isF2 = this.currentFloor >= 2;
+    // Floor 2: denser cracks/rubble; Floor 1: standard 4%
+    var density = isF2 ? 0.10 : 0.04;
     for (var ty = 1; ty < mapH - 1; ty++) {
       for (var tx = 1; tx < mapW - 1; tx++) {
         var t = tiles[ty][tx];
         if (t !== DungeonGenerator.FLOOR && t !== DungeonGenerator.START) continue;
-        if (Math.random() > 0.04) continue;
+        if (Math.random() > density) continue;
         var wx = tx * 32, wy = ty * 32;
-        _drawDecor(gr, wx, wy, Math.floor(Math.random() * 5));
+        var type;
+        if (isF2) {
+          // Floor 2: skew heavily toward cracks (2) and sharp rocks (5), some rubble (3)
+          var r = Math.random();
+          type = r < 0.40 ? 2 : r < 0.70 ? 5 : r < 0.85 ? 3 : Math.floor(Math.random() * 3);
+        } else {
+          type = Math.floor(Math.random() * 5);
+        }
+        _drawDecor(gr, wx, wy, type);
       }
     }
   },
@@ -1528,6 +1556,11 @@ var GameScene = new Phaser.Class({
 
     var lvlUp = this.status.addXP(enemy.xpValue);
     this.status.addViews(Math.floor(enemy.xpValue * 20));
+    // Followers grow on kills too — slower rate; Floor 2+ social system active
+    if (this.currentFloor >= 2) {
+      this.status.addFollowers(Math.floor(enemy.xpValue * 0.4));
+      this._lastKillTime = Date.now();
+    }
 
     // Spawn XP orbs
     var numOrbs = Math.ceil(enemy.xpValue / 8);
@@ -2074,6 +2107,28 @@ var GameScene = new Phaser.Class({
           scene._claimedBoxes.push({ tier: 'silver', _contents: scene._lootTableForTier('silver') });
         });
       }
+      // Experience cookie — XP reward on first visit per safe room (lore: counter cookie, once/day)
+      this.time.delayedCall(4500, function () {
+        if (scene._currentSafeRoom !== entered) return;
+        var cookieXP = 30 + Math.floor(Math.random() * 20);
+        var lvlUp = scene.status.addXP(cookieXP);
+        scene._floatText(scene.carl.x(), scene.carl.y() - 28, '+' + cookieXP + ' XP (cookie)', '#ffdd88', 11);
+        scene.messages.push('THERE IS AN EXPERIENCE COOKIE ON THE COUNTER. CARL EATS IT. IT TASTES TERRIBLE. +' + cookieXP + ' XP.');
+        if (lvlUp) lvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
+      });
+      // Vending machine candy — 50% chance, +1 DEX for 10 min (lore: temporary buff, tastes terrible)
+      if (Math.random() < 0.5) {
+        this.time.delayedCall(5800, function () {
+          if (scene._currentSafeRoom !== entered) return;
+          scene.status._dexBuffUntil = Date.now() + 600000;
+          scene._floatText(scene.carl.x(), scene.carl.y() - 36, '+1 DEX (10 min)', '#aaffaa', 11);
+          scene.messages.push('VENDING MACHINE IN CORNER. ONE WRAPPED CANDY DISPENSES. +1 DEX FOR 10 MINUTES. IT TASTES LIKE CHALK AND REGRET.');
+          scene.time.delayedCall(600000, function () {
+            scene.status._dexBuffUntil = 0;
+            scene._floatText(scene.carl.x(), scene.carl.y() - 24, 'DEX buff expired', '#888888', 10);
+          });
+        });
+      }
       // Donut reacts
       this.time.delayedCall(7000, function () {
         scene.messages.push(MessageSystem.donutReaction('safe_room'));
@@ -2162,6 +2217,12 @@ var GameScene = new Phaser.Class({
     var nextFloor = this.currentFloor + 1;
     this.status.addViews(300000);
     this.status.addFollowers(3000);
+    // Floor 2 entry: Borant activates social features — boost to meaningful numbers
+    if (nextFloor === 2) {
+      this.status.views     = Math.max(this.status.views,     5000000 + Math.floor(Math.random() * 2000000));
+      this.status.followers = Math.max(this.status.followers, 25000   + Math.floor(Math.random() * 10000));
+      this.status.favorites = Math.max(this.status.favorites, 4000    + Math.floor(Math.random() * 2000));
+    }
     _playDescend();
     this.messages.push(MessageSystem.donutReaction('descend'));
     SaveSystem.save(this.status, nextFloor);
@@ -2666,12 +2727,21 @@ function _drawDecor(gr, wx, wy, type) {
     for (var i = 0; i < 5; i++) {
       gr.fillRect(ox + Math.floor(Math.random() * 14), oy + Math.floor(Math.random() * 10), 2, 2);
     }
-  } else {
+  } else if (type === 4) {
     // Dark stain — irregular blotch
     gr.fillStyle(0x110a18, 0.45);
     gr.fillEllipse(ox, oy, 14, 9);
     gr.fillStyle(0x1a1228, 0.25);
     gr.fillEllipse(ox + 4, oy + 2, 8, 5);
+  } else {
+    // Sharp rocks — jagged grey-brown shards (Floor 2 hazard underfoot)
+    gr.fillStyle(0x8a7a6a, 0.70);
+    gr.fillTriangle(ox, oy + 6, ox + 4, oy, ox + 8, oy + 6);
+    gr.fillStyle(0x6a5a4a, 0.60);
+    gr.fillTriangle(ox + 5, oy + 7, ox + 10, oy + 1, ox + 14, oy + 7);
+    gr.fillStyle(0xaa9a8a, 0.40);
+    gr.fillTriangle(ox + 1, oy + 1, ox + 3, oy, ox + 3, oy + 2);
+    gr.fillTriangle(ox + 6, oy + 2, ox + 9, oy + 1, ox + 9, oy + 3);
   }
 }
 
