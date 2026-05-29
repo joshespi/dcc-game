@@ -1715,6 +1715,60 @@ var SpriteGen = (function () {
     return c;
   }
 
+  // ── LAMINAK ELITE (Floor 2 fairy-class manager) ──────────────────────────────
+  // Lore: miniature 40-something woman, hummingbird wings, leaf pantsuit, no weapons.
+  // Crow-sized. Manages clurichaun workers. Disease-immune.
+  function genLaminakElite() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var SKIN = '#d4a070', SKIND = '#b08050', HAIR = '#553020';
+    var LEAF  = '#5a8c30', LEAFD = '#3a5c18', LEAFL = '#88cc50';
+    var WING  = 'rgba(180,230,255,0.55)', WINGD = 'rgba(100,180,220,0.8)';
+
+    // Hummingbird wings — iridescent, blurry, fast
+    ctx.fillStyle = WING;
+    ctx.beginPath(); ctx.ellipse(10, 16, 9, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(22, 16, 9, 4,  0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = WINGD; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(10, 16, 9, 4, -0.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(22, 16, 9, 4,  0.5, 0, Math.PI * 2); ctx.stroke();
+
+    // Body — leaf pantsuit
+    ctx.fillStyle = LEAF;
+    ctx.fillRect(13, 18, 6, 10); // torso/skirt
+    ctx.fillStyle = LEAFL;
+    ctx.fillRect(13, 18, 3, 5);  // lapel highlight
+    // Jacket collar
+    ctx.fillStyle = LEAFD; ctx.fillRect(14, 18, 4, 2);
+
+    // Arms
+    ctx.fillStyle = SKIN;
+    ctx.fillRect(11, 19, 2, 5); // left arm
+    ctx.fillRect(19, 19, 2, 5); // right arm
+
+    // Head
+    ctx.fillStyle = SKIN;
+    ctx.beginPath(); ctx.ellipse(16, 14, 5, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = SKIND;
+    ctx.beginPath(); ctx.ellipse(16, 16, 5, 3, 0, 0, Math.PI); ctx.fill(); // jaw shadow
+
+    // Hair — inverted bob, dark brown
+    ctx.fillStyle = HAIR;
+    ctx.beginPath(); ctx.ellipse(16, 11, 5, 4, 0, Math.PI, Math.PI * 2); ctx.fill(); // top
+    ctx.fillRect(11, 11, 2, 5); ctx.fillRect(19, 11, 2, 5); // bob sides
+
+    // Face — 40s woman, slightly stern
+    ctx.fillStyle = '#220000';
+    ctx.fillRect(14, 13, 2, 1); ctx.fillRect(18, 13, 2, 1); // eyes
+    ctx.fillStyle = '#cc3344'; ctx.fillRect(14, 16, 4, 1); // lipstick mouth
+
+    // Tiny clipboard/pamphlet — she's always managing
+    ctx.fillStyle = '#f0e8c8'; ctx.fillRect(19, 21, 3, 4);
+    ctx.fillStyle = '#888870'; ctx.fillRect(20, 22, 1, 2); ctx.fillRect(20, 24, 2, 1);
+
+    outline(ctx, '#2a1a00', T, T);
+    return c;
+  }
+
   // ── KRAKAREN CLONE (Floor 2 neighborhood boss) ───────────────────────────────
   // Lore: communal brain entity. Pink tentacles, each covered in human-shaped screaming mouths.
   // Breaks through walls. Cannot see. Swings blindly. Larger than a neighborhood boss.
@@ -1848,6 +1902,7 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('mind_horror',     genMindHorror());
     scene.textures.addCanvas('mailbox',         genMailbox());
     scene.textures.addCanvas('krakaren_clone',  genKrakarenClone());
+    scene.textures.addCanvas('laminak_elite',   genLaminakElite());
   }
 
   return { init: init };

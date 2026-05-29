@@ -1124,8 +1124,30 @@ var EnemyFactory = (function () {
     if (type === 'brindled_vespa') return new BrindledVespaEnemy(scene, x, y, scaledDef);
     if (type === 'kobold_rider')   return new KoboldRiderEnemy(scene, x, y, scaledDef);
     if (type === 'mind_horror')    return new MindHorrorEnemy(scene, x, y, scaledDef);
+    if (type === 'laminak_elite')  return new LaminakEliteEnemy(scene, x, y, scaledDef);
     return new Enemy(scene, x, y, scaledDef);
   }
+
+  // ── Laminak Elite Rev-Up Consultant (Floor 2) — fairy-class manager mob ────
+  // Lore: miniature 40-something woman, hummingbird wings, leaf pantsuit. No weapons.
+  // Disease-immune. Manages clurichaun workers. Drops gold + MLM brochures.
+
+  DEFS.laminak_elite = {
+    name: 'Laminak Elite', texture: 'laminak_elite', hp: 22, damage: 7,
+    speed: 110, xp: 30,
+    aggroRange: 200, attackRange: 22, attackCd: 1200,
+    bodyW: 14, bodyH: 14,
+    onHitEffect: null, isMelee: true,
+  };
+
+  function LaminakEliteEnemy(scene, x, y, scaledDef) {
+    Enemy.call(this, scene, x, y, scaledDef || DEFS.laminak_elite);
+    this._goblinFaction = true;
+    this._diseaseImmune = true;  // does not take Taint, Septic, Poison from any source
+    this.sprite.setScale(0.7);   // physically smaller than a standard mob
+  }
+  LaminakEliteEnemy.prototype = Object.create(Enemy.prototype);
+  LaminakEliteEnemy.prototype.constructor = LaminakEliteEnemy;
 
   // Neighborhood boss — buffed placeholder until The Hoarder gets own sprite
   var BOSS_DEFS = {
@@ -1180,7 +1202,7 @@ var EnemyFactory = (function () {
   function typesForFloor(floorNum) {
     if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_basher', 'trog_virtuoso', 'scatterer', 'scatterer', 'bad_llama', 'scat_thug'];
     // Floor 2: skeletons + dingoes + clurichauns + kobold riders + mind horrors + vespas (from pupa)
-    if (floorNum === 2) return ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider', 'mind_horror'];
+    if (floorNum === 2) return ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider', 'mind_horror', 'laminak_elite'];
     return ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];
   }
 
@@ -1252,6 +1274,7 @@ var EnemyFactory = (function () {
     BrindledVespaEnemy: BrindledVespaEnemy,
     KoboldRiderEnemy: KoboldRiderEnemy,
     MindHorrorEnemy: MindHorrorEnemy,
+    LaminakEliteEnemy: LaminakEliteEnemy,
     resetSwarms: _resetScattererSwarm,
   };
 })();

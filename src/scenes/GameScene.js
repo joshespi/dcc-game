@@ -1188,6 +1188,7 @@ var GameScene = new Phaser.Class({
     'Brindled Vespa': [{ name: 'Vespa Chitin', quality: 'uncommon' }, { name: 'Vespa Gland', quality: 'uncommon' }],
     'Kobold Rider':   [{ name: 'Beer-Can Chainmail', quality: 'common' }, { name: 'Kobold Lance Tip', quality: 'common' }],
     'Mind Horror':    [{ name: 'Psionic Residue', quality: 'uncommon' }, { name: 'Brain Jelly', quality: 'uncommon' }],
+    'Laminak Elite':  [{ name: 'MLM Brochure', quality: 'common' }, { name: 'Leaf Pantsuit Scrap', quality: 'uncommon' }],
   },
 
   _craftingDropForEnemy: function (typeName) {
@@ -1609,9 +1610,15 @@ var GameScene = new Phaser.Class({
       if (mat) corpseItems.push(mat);
     }
     if (scene.currentFloor >= 2) {
-      var goldBase = enemy.typeName === 'Danger Dingo' ? 15 : 2;
+      var goldBase = enemy.typeName === 'Danger Dingo' ? 15 : enemy.typeName === 'Laminak Elite' ? 25 : 2;
       var goldAmt = goldBase + Math.floor(Math.random() * 8) + Math.floor(enemy.xpValue / 5);
       corpseItems.push({ type: 'gold', name: goldAmt + ' Gold Coins', amount: goldAmt });
+      // Laminak: also drop MLM brochures (alchemy-only corpse per lore)
+      if (enemy.typeName === 'Laminak Elite') {
+        for (var bi = 0; bi < 5; bi++) {
+          corpseItems.push({ type: 'crafting', name: 'MLM Brochure', quality: 'common' });
+        }
+      }
     }
 
     // Spawn corpse — dim, dark-red tinted enemy sprite stays 15s
