@@ -1125,25 +1125,47 @@ var EnemyFactory = (function () {
   }
 
   // Neighborhood boss — buffed placeholder until The Hoarder gets own sprite
-  function createBoss(scene, x, y, floorNum) {
-    var scale = 1 + (floorNum - 1) * 0.3;
-    var bossDef = {
+  var BOSS_DEFS = {
+    1: {
+      bossType: 'hoarder',
       name: 'The Hoarder',
       texture: 'hoarder',
-      hp:     Math.round(420 * scale),
-      damage: Math.round(24  * scale),
-      speed:  62,
-      xp:     Math.round(240 * scale),
-      aggroRange:  320,
-      attackRange: 42,
-      attackCd:    900,
+      hp: 420, damage: 24, speed: 62, xp: 240,
+      aggroRange: 320, attackRange: 42, attackCd: 900,
       bodyW: 32, bodyH: 32,
+    },
+    2: {
+      bossType: 'krakaren',
+      name: 'Krakaren Clone',
+      texture: 'krakaren_clone',
+      hp: 560, damage: 20, speed: 48, xp: 320,
+      aggroRange: 380, attackRange: 52, attackCd: 1100,
+      bodyW: 36, bodyH: 36,
+    },
+  };
+
+  function createBoss(scene, x, y, floorNum) {
+    var scale = 1 + (floorNum - 1) * 0.3;
+    var def = BOSS_DEFS[floorNum] || BOSS_DEFS[1];
+    var bossDef = {
+      name:        def.name,
+      texture:     def.texture,
+      hp:          Math.round(def.hp     * scale),
+      damage:      Math.round(def.damage * scale),
+      speed:       def.speed,
+      xp:          Math.round(def.xp     * scale),
+      aggroRange:  def.aggroRange,
+      attackRange: def.attackRange,
+      attackCd:    def.attackCd,
+      bodyW:       def.bodyW,
+      bodyH:       def.bodyH,
     };
     var boss = new Enemy(scene, x, y, bossDef);
     boss.sprite.setScale(1.0).setDepth(9);
-    boss.sprite.body.setSize(32, 32);
-    boss.sprite.body.setOffset(8, 12);
+    boss.sprite.body.setSize(def.bodyW, def.bodyH);
+    boss.sprite.body.setOffset(Math.floor((48 - def.bodyW) / 2), Math.floor((48 - def.bodyH) / 2));
     boss.isBoss      = true;
+    boss._bossType   = def.bossType;
     boss._noWander   = true;
     boss._phase      = 1;
     boss._slamCd     = 0;

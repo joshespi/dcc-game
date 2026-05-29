@@ -202,6 +202,24 @@ var MessageSystem = (function () {
     return pool[Math.floor(Math.random() * pool.length)];
   };
 
+  MessageSystem.bossKrakarenTaunt = function (phase) {
+    var p1 = [
+      '"MORE. MORE. MORE." — EVERY MOUTH, SIMULTANEOUSLY.',
+      'THE MOUTHS SCREAM IN UNISON. THE WORDS ARE DIFFERENT. THE TONE IS IDENTICAL.',
+      '"WE ARE KRAKAREN PRIME\'S VOICE. WE ARE KRAKAREN PRIME\'S HANDS. WE ARE KRAKAREN PRIME\'S MOUTH." THERE ARE FORTY-SEVEN MOUTHS.',
+      'A TENTACLE WITH NO MOUTH WAVES SADLY IN YOUR DIRECTION.',
+      '"YOU SMELL LIKE SOMEONE KRAKAREN PRIME WOULD ENJOY." UNCLEAR IF COMPLIMENT.',
+    ];
+    var p2 = [
+      '"YOU HAVE MADE US BLEED. KRAKAREN PRIME WILL HEAR OF THIS." THE MOUTHS ARE LESS AMUSED.',
+      '"MORE TENTACLES. WE HAVE MORE TENTACLES. YOU DO NOT HAVE MORE ANYTHING." — ALL MOUTHS.',
+      'THE SCREAMING GETS LOUDER. THE WORDS ARE FEWER. THIS IS PHASE 2.',
+      '"FINISH IT," DONUT SAYS. "THE SOUND IS PHYSICALLY HURTING ME." SHE DOES NOT HAVE EARS.',
+    ];
+    var pool = (phase >= 2) ? p2 : p1;
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+
   MessageSystem.viewsMilestone = function (views) {
     var fmt = _fmtN(views);
     var lines = {

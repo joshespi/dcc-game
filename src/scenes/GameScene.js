@@ -486,7 +486,8 @@ var GameScene = new Phaser.Class({
     var resolvers = this._speakerResolvers || (this._speakerResolvers = {
       DONUT:         function (s) { return s.donut ? s.donut.getSprite() : null; },
       MORDECAI:      function (s) { return s._guildNPC || null; },
-      'THE HOARDER': function (s) { return s._bossEnemy && !s._bossEnemy.isDead() ? s._bossEnemy.sprite : null; },
+      'THE HOARDER':     function (s) { return s._bossEnemy && s._bossEnemy._bossType === 'hoarder'   && !s._bossEnemy.isDead() ? s._bossEnemy.sprite : null; },
+      'KRAKAREN CLONE':  function (s) { return s._bossEnemy && s._bossEnemy._bossType === 'krakaren'  && !s._bossEnemy.isDead() ? s._bossEnemy.sprite : null; },
       TALLY:         function (s) {
         if (!s._bopcas || !s._bopcas.length) return null;
         var cx = s.carl.x(), cy = s.carl.y();
@@ -742,9 +743,19 @@ var GameScene = new Phaser.Class({
           e._slamCd = nowMs;
           e.sprite.setTint(0xff3300);
           this.cameras.main.shake(400, 0.014);
-          this.messages.push('THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.');
-          this._floatText(e.sprite.x, e.sprite.y - 24, 'PHASE 2!', '#ff4400', 14);
           _playPhaseTransition();
+          this._floatText(e.sprite.x, e.sprite.y - 24, 'PHASE 2!', '#ff4400', 14);
+          if (e._bossType === 'krakaren') {
+            this.messages.push('KRAKAREN CLONE SEETHES. ADDITIONAL TENTACLES EMERGE FROM THE FLOOR. MOUTH-COUNT DOUBLES.');
+            this.time.delayedCall(600, function () {
+              scene.messages.push('"MORE. MORE. MORE." — EVERY MOUTH, SIMULTANEOUSLY.');
+            });
+          } else {
+            this.messages.push('THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.');
+            this.time.delayedCall(600, function () {
+              scene.messages.push('"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER');
+            });
+          }
           var addTypes = EnemyFactory.typesForFloor(this.currentFloor);
           for (var si = 0; si < 3; si++) {
             var ang = (si / 3) * Math.PI * 2;
@@ -755,17 +766,22 @@ var GameScene = new Phaser.Class({
               this.currentFloor
             );
           }
-          this.time.delayedCall(600, function () {
-            scene.messages.push('"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER');
-          });
         }
         if (e._aggroed && nowMs >= e._slamCd) {
           e._slamCd = nowMs + e._slamCdMs;
-          this._bossGroundSlam(e);
+          if (e._bossType === 'krakaren') {
+            this._bossKrakarenSlam(e);
+          } else {
+            this._bossGroundSlam(e);
+          }
         }
         if (e._phase === 2 && e._aggroed && nowMs >= e._throwCd) {
           e._throwCd = nowMs + e._throwCdMs;
-          this._bossThrowJunk(e);
+          if (e._bossType === 'krakaren') {
+            this._bossKrakarenMist(e);
+          } else {
+            this._bossThrowJunk(e);
+          }
         }
       }
     }
@@ -2270,11 +2286,19 @@ var GameScene = new Phaser.Class({
     // Seal the door behind Carl — wall tile at door position
     this.wallLayer.putTileAt(DungeonGenerator.WALL, this._bossRoom.doorX, this._bossRoom.doorY);
     this.cameras.main.shake(500, 0.018);
-    this.messages.push('BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: THE HOARDER. BORANT CORPORATION THANKS YOU FOR YOUR SACRIFICE.');
     var scene = this;
-    this.time.delayedCall(1200, function () {
-      scene.messages.push('"I WAS HERE FIRST," IT SCREAMS. "ALL OF THIS IS MINE."');
-    });
+    var bossType = this._bossEnemy ? this._bossEnemy._bossType : 'hoarder';
+    if (bossType === 'krakaren') {
+      this.messages.push('BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: KRAKAREN CLONE. BORANT NOTES: THIS IS NOT THE KRAKAREN. THIS IS A KRAKAREN. THERE ARE MORE.');
+      this.time.delayedCall(1200, function () {
+        scene.messages.push('DOZENS OF MOUTHS SCREAM FROM EVERY TENTACLE. THE SOUND IS SOLID. DONUT COVERS HER EARS.');
+      });
+    } else {
+      this.messages.push('BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: THE HOARDER. BORANT CORPORATION THANKS YOU FOR YOUR SACRIFICE.');
+      this.time.delayedCall(1200, function () {
+        scene.messages.push('"I WAS HERE FIRST," IT SCREAMS. "ALL OF THIS IS MINE."');
+      });
+    }
     this.time.delayedCall(2400, function () {
       scene.messages.push(MessageSystem.donutReaction('many_enemies'));
     });
@@ -2285,7 +2309,9 @@ var GameScene = new Phaser.Class({
       callback: function () {
         var b = scene._bossEnemy;
         if (b && !b.isDead()) {
-          scene.messages.push(MessageSystem.bossHoarderTaunt(b._phase));
+          scene.messages.push(b._bossType === 'krakaren'
+            ? MessageSystem.bossKrakarenTaunt(b._phase)
+            : MessageSystem.bossHoarderTaunt(b._phase));
         }
       },
     });
@@ -2321,19 +2347,27 @@ var GameScene = new Phaser.Class({
     if (ksu) this._onSkillUp(ksu);
     var bossLvlUp = this.status.addXP(enemy.xpValue);
 
-    // Always drop a unique Hoarder item — instant pickup, legendary tier
-    var hoarderPool = [
+    // Always drop a unique boss item — instant pickup, legendary tier
+    var bossType = enemy._bossType || 'hoarder';
+    var bossDropPool = bossType === 'krakaren' ? [
+      { type: 'weapon', name: "Krakaren's Severed Tentacle", damage: 18 + scene.currentFloor * 2, sprite: 'weapon' },
+      { type: 'armor',  name: "Krakaren Mouth-Leather Coat", defense: 10 + scene.currentFloor,     sprite: 'armor'  },
+      { type: 'armor',  name: "Screaming Carapace",          defense: 8  + scene.currentFloor,     sprite: 'armor'  },
+    ] : [
       { type: 'weapon', name: "The Hoarder's Cleaver", damage: 15 + scene.currentFloor * 2, sprite: 'weapon' },
       { type: 'weapon', name: "The Hoarder's Shank",   damage: 12 + scene.currentFloor * 2, sprite: 'weapon' },
       { type: 'armor',  name: "The Hoarder's Coat",    defense: 8 + scene.currentFloor,      sprite: 'armor'  },
       { type: 'armor',  name: "The Hoarder's Scraps",  defense: 6 + scene.currentFloor,      sprite: 'armor'  },
     ];
-    var uniqueDrop = hoarderPool[Math.floor(Math.random() * hoarderPool.length)];
+    var uniqueDrop = bossDropPool[Math.floor(Math.random() * bossDropPool.length)];
     var ubox = scene.physics.add.staticImage(enemy.sprite.x - 20, enemy.sprite.y - 16, 'loot_box');
     ubox.setDepth(5).setTint(_tierTint('legendary'));
     ubox._opened = false; ubox._tier = 'legendary'; ubox._contents = uniqueDrop; ubox._isDrop = true;
     scene.lootBoxes.push(ubox);
-    scene.messages.push('THE HOARDER\'S COLLECTION SCATTERS. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!');
+    var dropMsg = bossType === 'krakaren'
+      ? 'KRAKAREN CLONE DISSOLVES. ITS MOUTHS STILL SCREAM FOR 11 SECONDS AFTERWARD. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!'
+      : 'THE HOARDER\'S COLLECTION SCATTERS. [E] TO CLAIM: ' + uniqueDrop.name.toUpperCase() + '!';
+    scene.messages.push(dropMsg);
 
     // Survivor Box: <5% HP = Silver Survivor's Box, <10% HP = Bronze Survivor's Box (lore-accurate)
     var hpPct = this.status.hpPercent();
@@ -2454,6 +2488,66 @@ var GameScene = new Phaser.Class({
       });
 
       scene.time.delayedCall(1500, function () { if (junk.active) junk.destroy(); });
+    });
+  },
+
+  _bossKrakarenSlam: function (boss) {
+    // Tentacle sweep — wider arc than hoarder slam, green/purple tint
+    var scene = this;
+    var SWEEP_R = boss._phase === 2 ? 130 : 96;
+    var SWEEP_DMG = boss._phase === 2 ? 28 : 18;
+    var bx = boss.sprite.x, by = boss.sprite.y;
+
+    var warn = scene.add.graphics().setDepth(20);
+    warn.lineStyle(3, 0x44aa22, 0.85);
+    warn.strokeCircle(bx, by, SWEEP_R);
+    warn.fillStyle(0x228811, 0.12);
+    warn.fillCircle(bx, by, SWEEP_R);
+    scene._floatText(bx, by - 28, 'TENTACLES!', '#44dd22', 13);
+
+    scene.time.delayedCall(800, function () {
+      warn.destroy();
+      var flash = scene.add.graphics().setDepth(20);
+      flash.fillStyle(0x44cc22, 0.4);
+      flash.fillCircle(bx, by, SWEEP_R);
+      scene.time.delayedCall(150, function () { flash.destroy(); });
+      scene.cameras.main.shake(200, 0.010);
+      _playBossSlam();
+
+      var dx = scene.carl.x() - bx, dy = scene.carl.y() - by;
+      if (dx * dx + dy * dy < SWEEP_R * SWEEP_R) {
+        var dmg = scene.carl.receiveHit(SWEEP_DMG, 'krakaren_tentacle');
+        if (dmg > 0) {
+          scene._onCarlHurt(dmg, 'tentacle sweep');
+          scene.messages.push('TENTACLE SWEEP. -' + dmg + ' HP. THE MOUTHS ARE LAUGHING.');
+        }
+      }
+    });
+  },
+
+  _bossKrakarenMist: function (boss) {
+    // Phase 2 mist spray — applies Septic debuff, short range cone
+    var scene = this;
+    if (boss.isDead()) return;
+    var bx = boss.sprite.x, by = boss.sprite.y;
+    var tx = scene.carl.x(), ty = scene.carl.y();
+    var MIST_R = 100;
+
+    scene._floatText(bx, by - 24, 'MIST!', '#88ff44', 12);
+    var mist = scene.add.graphics().setDepth(20);
+    mist.fillStyle(0x55cc33, 0.35);
+    mist.fillCircle(bx, by, MIST_R);
+
+    scene.time.delayedCall(200, function () {
+      mist.destroy();
+      var dx = tx - bx, dy = ty - by;
+      if (dx * dx + dy * dy < MIST_R * MIST_R) {
+        if (!scene.status.hasDebuff(DEBUFF_SEPTIC)) {
+          scene.status.applyDebuff(DEBUFF_SEPTIC, 8000, 1, 2000);
+          scene._floatText(scene.carl.x(), scene.carl.y() - 20, 'SEPTIC!', '#44dd22', 12);
+          scene.messages.push('VIGOROUS MEASLES MIST CLOUD. SEPTIC DEBUFF APPLIED. MOVEMENT SLOWED.');
+        }
+      }
     });
   },
 

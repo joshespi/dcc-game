@@ -1715,6 +1715,68 @@ var SpriteGen = (function () {
     return c;
   }
 
+  // ── KRAKAREN CLONE (Floor 2 neighborhood boss) ───────────────────────────────
+  // Lore: communal brain entity. Pink tentacles, each covered in human-shaped screaming mouths.
+  // Breaks through walls. Cannot see. Swings blindly. Larger than a neighborhood boss.
+  function genKrakarenClone() {
+    var c = canvas(T, T), ctx = c.getContext('2d');
+    var PINK   = '#e060a0', PINKD = '#b03070', PINKL = '#f890c8';
+    var MOUTH  = '#cc1040', TEETH = '#f8f0e0', DARK = '#600020';
+
+    // Central mass — pulsing pink blob
+    ctx.fillStyle = PINKD;
+    ctx.beginPath(); ctx.ellipse(16, 18, 13, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PINK;
+    ctx.beginPath(); ctx.ellipse(15, 17, 10, 8, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PINKL;
+    ctx.beginPath(); ctx.ellipse(13, 14, 6, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+
+    // Tentacles radiating outward — thick, sinuous
+    var tentacles = [
+      { x1: 16, y1: 12, cx: 8,  cy: 4,  x2: 4,  y2: 2  },
+      { x1: 22, y1: 14, cx: 30, cy: 8,  x2: 32, y2: 6  },
+      { x1: 28, y1: 18, cx: 36, cy: 18, x2: 38, y2: 22 },
+      { x1: 22, y1: 26, cx: 28, cy: 34, x2: 24, y2: 36 },
+      { x1: 10, y1: 26, cx: 4,  cy: 34, x2: 6,  y2: 38 },
+      { x1: 4,  y1: 18, cx: -4, cy: 18, x2: -4, y2: 14 },
+    ];
+    ctx.strokeStyle = PINK; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    tentacles.forEach(function(t) {
+      ctx.beginPath(); ctx.moveTo(t.x1, t.y1);
+      ctx.quadraticCurveTo(t.cx, t.cy, t.x2, t.y2); ctx.stroke();
+    });
+    // Darker outline on tentacles
+    ctx.strokeStyle = PINKD; ctx.lineWidth = 2;
+    tentacles.forEach(function(t) {
+      ctx.beginPath(); ctx.moveTo(t.x1, t.y1);
+      ctx.quadraticCurveTo(t.cx, t.cy, t.x2, t.y2); ctx.stroke();
+    });
+
+    // Screaming mouths on tentacles — wide open, bright red, tiny teeth
+    var mouthPos = [[6, 4], [31, 8], [36, 20], [25, 34], [8, 36]];
+    mouthPos.forEach(function(m) {
+      ctx.fillStyle = MOUTH;
+      ctx.beginPath(); ctx.ellipse(m[0], m[1], 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = TEETH;
+      for (var i = -3; i <= 3; i += 2) {
+        ctx.fillRect(m[0] + i - 0.5, m[1] - 1.5, 1, 1.5);
+      }
+    });
+
+    // Central face on main body — the main scream
+    ctx.fillStyle = DARK;
+    ctx.beginPath(); ctx.ellipse(16, 19, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = MOUTH;
+    ctx.beginPath(); ctx.ellipse(16, 19, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = TEETH;
+    for (var mi = -3; mi <= 3; mi += 2) {
+      ctx.fillRect(16 + mi - 0.5, 17, 1, 2);
+    }
+
+    outline(ctx, DARK, T, T);
+    return c;
+  }
+
   // ── MAILBOX (safe rooms Floor 2+) — standard black mailbox with red flag ──
   function genMailbox() {
     var c = canvas(T, T), ctx = c.getContext('2d');
@@ -1785,6 +1847,7 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('kobold_rider',    genKoboldRider());
     scene.textures.addCanvas('mind_horror',     genMindHorror());
     scene.textures.addCanvas('mailbox',         genMailbox());
+    scene.textures.addCanvas('krakaren_clone',  genKrakarenClone());
   }
 
   return { init: init };
