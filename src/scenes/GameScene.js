@@ -79,7 +79,7 @@ var GameScene = new Phaser.Class({
 
   // ── create ────────────────────────────────────────────────────────────────
   create: function () {
-    var MAP_W = 160, MAP_H = 160;
+    var MAP_W = 256, MAP_H = 256;
     this.MAP_W = MAP_W; this.MAP_H = MAP_H;
 
     // Reset any registry state that may persist across floor transitions

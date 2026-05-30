@@ -67,17 +67,16 @@ var DungeonGenerator = (function () {
     var safeRooms = [];
     for (var sri = 0; sri < arteryRows.length; sri++) {
       for (var sci = 0; sci < arteryCols.length; sci++) {
-        // Place a safe room chamber at ~every other intersection
-        if ((sri + sci) % 2 === 0) {
-          var srx = arteryCols[sci] - 5;
-          var sry = arteryRows[sri] - 5;
-          var srw = 11, srh = 11;
-          if (srx > 1 && sry > 1 && srx + srw < this.mapW - 1 && sry + srh < this.mapH - 1) {
-            this._carveRect(tiles, srx, sry, srw, srh, SAFE);
-            var srName = namePool[nameIdx % namePool.length];
-            nameIdx++;
-            safeRooms.push({ x: srx, y: sry, w: srw, h: srh, name: srName });
-          }
+        // ~1 in 4 intersections gets a safe room (down from 1 in 2)
+        if ((sri * arteryCols.length + sci) % 4 !== 0) continue;
+        var srx = arteryCols[sci] - 4;
+        var sry = arteryRows[sri] - 4;
+        var srw = 9, srh = 9;
+        if (srx > 1 && sry > 1 && srx + srw < this.mapW - 1 && sry + srh < this.mapH - 1) {
+          this._carveRect(tiles, srx, sry, srw, srh, SAFE);
+          var srName = namePool[nameIdx % namePool.length];
+          nameIdx++;
+          safeRooms.push({ x: srx, y: sry, w: srw, h: srh, name: srName });
         }
       }
     }
