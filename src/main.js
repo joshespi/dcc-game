@@ -10,7 +10,7 @@ var config = {
       debug: false,
     }
   },
-  scene: [BootScene, IntroScene, GameScene, UIScene, DeathScene],
+  scene: [BootScene, IntroScene, CutsceneScene, GameScene, UIScene, DeathScene],
   render: {
     pixelArt: true,
     antialias: false,

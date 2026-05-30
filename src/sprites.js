@@ -1940,6 +1940,92 @@ var SpriteGen = (function () {
     return c;
   }
 
+  // ── RAGE ELEMENTAL — 15ft black/purple smoke, badger skull, goat horns, six obsidian-clawed legs ──
+  function genRageElemental() {
+    var c = canvas(T, T), ctx = ctx2d(c);
+    var SMKD = '#120820';
+    var SMKM = '#1f0d36';
+    var SMKL = '#2e1250';
+    var SMKP = '#5c1a8a';
+    var BONE = '#ccc8b8';
+    var BONED = '#9a9080';
+    var HORN = '#7a6040';
+    var CLAW = '#0c0a12';
+
+    // Smoke wisps around body — irregular, menacing
+    ctx.fillStyle = SMKL;
+    [[4,24,4,5],[27,22,4,6],[3,16,3,5],[28,15,3,5],[9,29,5,3],[21,28,4,3]].forEach(function(w) {
+      ctx.beginPath(); ctx.ellipse(w[0],w[1],w[2],w[3],0,0,Math.PI*2); ctx.fill();
+    });
+
+    // Main smoke body
+    ctx.fillStyle = SMKD;
+    ctx.beginPath(); ctx.ellipse(16,22,10,10,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = SMKM;
+    ctx.beginPath(); ctx.ellipse(16,21,8,8,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = SMKL;
+    ctx.beginPath(); ctx.ellipse(16,19,6,6,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = SMKP;
+    ctx.beginPath(); ctx.ellipse(16,17,3,4,0,0,Math.PI*2); ctx.fill();
+
+    // Six legs — three per side, each with obsidian claw at tip
+    ctx.strokeStyle = SMKD;
+    ctx.lineCap = 'round';
+    var legs = [
+      [-1, [10,16],[3,14]], [-1, [8,21],[1,20]], [-1, [10,26],[2,26]],
+      [ 1, [22,16],[29,14]], [ 1, [24,21],[31,20]], [ 1, [22,26],[30,26]]
+    ];
+    legs.forEach(function(l) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = SMKD;
+      ctx.beginPath(); ctx.moveTo(l[1][0],l[1][1]); ctx.lineTo(l[2][0],l[2][1]); ctx.stroke();
+      rect(ctx, l[2][0]-1, l[2][1]-2, 3, 3, CLAW);
+    });
+
+    // Badger skull — wide braincase, narrow jaw
+    ctx.fillStyle = BONED;
+    ctx.beginPath(); ctx.ellipse(16,9,8,7,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = BONE;
+    ctx.beginPath(); ctx.ellipse(16,8,7,6,0,0,Math.PI*2); ctx.fill();
+    // Brow ridges (badger has heavy supraorbital ridges)
+    rect(ctx, 9, 10, 5, 2, BONED);
+    rect(ctx, 18, 10, 5, 2, BONED);
+    // Eye sockets — void black
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.ellipse(12,9,2.5,2,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20,9,2.5,2,0,0,Math.PI*2); ctx.fill();
+    // Red ember glow inside eye sockets
+    ctx.fillStyle = '#cc2200';
+    ctx.beginPath(); ctx.ellipse(12,9,1.2,1,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20,9,1.2,1,0,0,Math.PI*2); ctx.fill();
+    // White nasal stripe (badger marking on skull)
+    rect(ctx, 15, 11, 2, 4, '#e0dcd0');
+    // Snout / upper jaw
+    ctx.fillStyle = BONED;
+    ctx.beginPath(); ctx.ellipse(16,14,5,3,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = BONE;
+    ctx.beginPath(); ctx.ellipse(16,13,4,2,0,0,Math.PI*2); ctx.fill();
+    // Teeth — lower jaw
+    rect(ctx, 11, 15, 10, 1, BONED);
+    for (var ti = 0; ti < 4; ti++) {
+      rect(ctx, 12 + ti*3, 16, 2, 2, '#ffffff');
+    }
+
+    // Goat horns — quadratic curves from crown outward and upward
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = HORN;
+    ctx.beginPath(); ctx.moveTo(10,4); ctx.quadraticCurveTo(5,2,6,0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(22,4); ctx.quadraticCurveTo(27,2,26,0); ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#5a4030';
+    ctx.beginPath(); ctx.moveTo(10,4); ctx.quadraticCurveTo(5,2,6,0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(22,4); ctx.quadraticCurveTo(27,2,26,0); ctx.stroke();
+
+    outline(ctx, '#0a0614', T, T);
+    return c;
+  }
+
   // ── REGISTER ALL ─────────────────────────────────────────────────────────
 
   function init(scene) {
@@ -1989,6 +2075,7 @@ var SpriteGen = (function () {
     scene.textures.addCanvas('mailbox',         genMailbox());
     scene.textures.addCanvas('krakaren_clone',  genKrakarenClone());
     scene.textures.addCanvas('laminak_elite',   genLaminakElite());
+    scene.textures.addCanvas('rage_elemental',  genRageElemental());
   }
 
   return { init: init };

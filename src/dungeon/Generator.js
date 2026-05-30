@@ -200,7 +200,12 @@ var DungeonGenerator = (function () {
       guildHall: guildHall,
       secondaryGuildHalls: secondaryGuildHalls,
       bossRoom: bossRoom,
-      startPos: { x: startX * 32 + 16, y: startY * 32 + 16 },
+      // Spawn inside guild hall so tutorial triggers immediately on new game.
+      // Falls back to artery intersection if no guild hall (floors 4+).
+      startPos: guildHall
+        ? { x: (guildHall.x + Math.floor(guildHall.w / 2)) * 32 + 16,
+            y: (guildHall.y + Math.floor(guildHall.h / 2)) * 32 + 16 }
+        : { x: startX * 32 + 16, y: startY * 32 + 16 },
       stairsTile: stairsTile,
       arteryCols: arteryCols,
       arteryRows: arteryRows,

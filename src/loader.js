@@ -11,6 +11,7 @@ var GAME_VERSION = '0.2.1+20260529-01';
   'src/entities/Donut.js',
   'src/scenes/BootScene.js',
   'src/scenes/IntroScene.js',
+  'src/scenes/CutsceneScene.js',
   'src/scenes/GameScene.js',
   'src/scenes/UIScene.js',
   'src/scenes/DeathScene.js',

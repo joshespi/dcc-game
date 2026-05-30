@@ -1092,6 +1092,139 @@ var EnemyFactory = (function () {
     Enemy.prototype.update.call(this, carlX, carlY, delta, missileGroup);
   };
 
+  // ── Rage Elemental (Floor 2) — nearly indestructible, self-healing, teleports out of safe rooms ──
+  // Triggered by urinating outside a bathroom. Dissipates after its kill quota is met (tracked externally).
+  // Lore: 15ft black/purple smoke, badger skull, goat horns, six obsidian-clawed legs.
+
+  DEFS.rage_elemental = {
+    name: 'Rage Elemental', texture: 'rage_elemental', hp: 6660, damage: 28,
+    speed: 78, xp: 0,
+    aggroRange: 9999, attackRange: 36, attackCd: 1200,
+    bodyW: 28, bodyH: 28,
+  };
+
+  function RageElementalEnemy(scene, x, y) {
+    Enemy.call(this, scene, x, y, DEFS.rage_elemental);
+    this._isRageElemental = true;
+    this._healTimer   = 0;
+    this._healMs      = 2000;   // self-heals every 2 seconds
+    this._healAmt     = 15;
+    this._gravCd      = 0;
+    this._gravCdMs    = 8000;   // Reverse Gravity every 8s
+    this._onGravity   = null;   // callback(damage) set by GameScene
+    this._onSafeExit  = null;   // callback() — fires when elemental teleports out of safe room
+    this._inSafeRoom  = false;
+    this._returnAt    = 0;
+    this._exiled      = false;
+    this._noWander    = true;
+    // Ominous purple glow
+    scene.tweens.add({
+      targets: this.sprite, alpha: 0.75,
+      duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+    // Scale up to signal elite threat
+    this.sprite.setScale(1.5).setDepth(13);
+  }
+  RageElementalEnemy.prototype = Object.create(Enemy.prototype);
+  RageElementalEnemy.prototype.constructor = RageElementalEnemy;
+
+  RageElementalEnemy.prototype.setGravityCallback = function (fn) { this._onGravity = fn; };
+  RageElementalEnemy.prototype.setSafeExitCallback = function (fn) { this._onSafeExit = fn; };
+
+  // Nearly indestructible — cap incoming damage at 3 per hit
+  RageElementalEnemy.prototype.takeDamage = function (amount) {
+    if (this._dead) return;
+    Enemy.prototype.takeDamage.call(this, Math.min(3, amount));
+  };
+
+  RageElementalEnemy.prototype.update = function (carlX, carlY, delta, missileGroup, corpses, isInSafeRoom) {
+    if (this._dead || !this.sprite.active) return;
+    var now = Date.now();
+
+    // Safe room exile: teleport out, return after 75-120s
+    if (isInSafeRoom && !this._exiled) {
+      this._exiled = true;
+      this._returnAt = now + 75000 + Math.floor(Math.random() * 45000);
+      this.sprite.setVisible(false).setActive(false);
+      this.sprite.body.setVelocity(0, 0);
+      if (this._onSafeExit) this._onSafeExit();
+      return;
+    }
+    if (this._exiled) {
+      if (!isInSafeRoom && now >= this._returnAt) {
+        this._exiled = false;
+        this.sprite.setPosition(carlX + (Math.random() < 0.5 ? -180 : 180), carlY);
+        this.sprite.setVisible(true).setActive(true);
+      } else {
+        return;
+      }
+    }
+
+    // Self-healing
+    if (now - this._healTimer > this._healMs) {
+      this._healTimer = now;
+      if (this.hp < this.maxHp) {
+        this.hp = Math.min(this.maxHp, this.hp + this._healAmt);
+        if (this._everHit) this._updateHpBar();
+      }
+    }
+
+    // Reverse Gravity attack (AoE psionic-style, no contact needed)
+    if (now - this._gravCd > this._gravCdMs) {
+      var gdx = carlX - this.sprite.x, gdy = carlY - this.sprite.y;
+      var gd2 = gdx * gdx + gdy * gdy;
+      if (gd2 < 260 * 260) {
+        this._gravCd = now;
+        this._doReverseGravity(carlX, carlY);
+        return;
+      }
+    }
+
+    // Seek nearest mob first — elemental rampages through the floor killing mobs.
+    // Falls back to chasing Carl when no mob is within seek range.
+    var seekX = carlX, seekY = carlY;
+    if (this._nearestMob && !this._nearestMob.isDead()) {
+      var nm = this._nearestMob;
+      seekX = nm.sprite.x; seekY = nm.sprite.y;
+    }
+
+    Enemy.prototype.update.call(this, seekX, seekY, delta, missileGroup);
+  };
+
+  RageElementalEnemy.prototype._doReverseGravity = function (carlX, carlY) {
+    var scene = this.scene;
+    // Visual burst — expanding purple ring
+    var g = scene.add.graphics().setDepth(20);
+    g.lineStyle(3, 0x8833cc, 0.9);
+    g.strokeCircle(carlX, carlY, 20);
+    scene.tweens.add({
+      targets: g, scaleX: 4, scaleY: 4, alpha: 0, duration: 700,
+      onComplete: function () { g.destroy(); }
+    });
+    scene.cameras.main.shake(400, 0.018);
+    if (this._onGravity) this._onGravity(this.damage);
+    _playHitSound(0.14);
+  };
+
+  // Rage Elemental never gives XP and logs no kill — just dissipates on quota
+  RageElementalEnemy.prototype._die = function () {
+    if (this._dead) return;
+    this._dead = true;
+    this._hpBarBg.destroy();
+    this._hpBarFill.destroy();
+    var spr = this.sprite;
+    var scene = this.scene;
+    scene.tweens.add({
+      targets: spr, alpha: 0, scaleX: 3, scaleY: 3, duration: 1200,
+      ease: 'Quad.easeOut',
+      onComplete: function () {
+        spr.setActive(false).setVisible(false);
+        spr.body.setVelocity(0, 0);
+      }
+    });
+    if (this._onDeath) this._onDeath(this);
+  };
+
   // ── Factory ────────────────────────────────────────────────────────────
 
   function create(scene, type, x, y, floorNum) {
@@ -1274,6 +1407,7 @@ var EnemyFactory = (function () {
     KoboldRiderEnemy: KoboldRiderEnemy,
     MindHorrorEnemy: MindHorrorEnemy,
     LaminakEliteEnemy: LaminakEliteEnemy,
+    RageElementalEnemy: RageElementalEnemy,
     resetSwarms: _resetScattererSwarm,
   };
 })();

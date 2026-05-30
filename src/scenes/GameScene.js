@@ -258,6 +258,9 @@ var GameScene = new Phaser.Class({
     this._higherLevelKillDone  = false; // Bronze Adventurer Box — one-time per floor
     this._knockdownUntil       = 0; // ms timestamp — Carl stunned until then
     this._lastDonutReactTime   = 0;
+    this._rageElemental        = null;
+    this._rageMobKills         = 0;   // mobs the elemental has slaughtered this floor
+    this._rageGravAchievement  = false;
     var curViews = this.status.views, curFollowers = this.status.followers;
     this._viewsMilestones     = [50000, 100000, 250000, 500000, 1000000, 2500000, 5000000, 10000000].filter(function (v) { return v > curViews; });
     this._followersMilestones = [1000, 5000, 10000, 50000, 100000].filter(function (v) { return v > curFollowers; });
@@ -320,6 +323,9 @@ var GameScene = new Phaser.Class({
         }
       }
     });
+
+    // ── Input: P = urinate (triggers Rage Elemental if outside bathroom) ────────
+    this.input.keyboard.on('keydown-P', function () { scene._onUrinate(); });
 
     // ── Input: Q = Donut spell ───────────────────────────────────────────────
     this.spellKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
@@ -527,6 +533,19 @@ var GameScene = new Phaser.Class({
         addItem: function (item) { dcc.status.addItem(item); dcc._markInvDirty(); },
         forceTutorialDone: function () { dcc.status.tutorialComplete = true; dcc.registry.set('tutorialComplete', true); },
       };
+    }
+
+    // ── Cutscene tutorial handoff — skip tutorial, grant items, unlock HUD ──────
+    if (this.registry.get('cutsceneDone')) {
+      this.registry.set('cutsceneDone', false);
+      this.status.tutorialComplete = true;
+      this.status.firstSafeRoomDone = true;
+      this.registry.set('tutorialComplete', true);
+      var scene = this;
+      this.time.delayedCall(400, function () {
+        scene._tutorialGiveSpell();
+        scene._tutorialGiveItems();
+      });
     }
 
     // ── Fade in ──────────────────────────────────────────────────────────────
@@ -752,16 +771,25 @@ var GameScene = new Phaser.Class({
       var etx = Math.floor(e.sprite.x / 32), ety = Math.floor(e.sprite.y / 32);
       var erow = _eTiles[ety];
       var etile = erow ? erow[etx] : null;
-      if (etile === DungeonGenerator.SAFE || etile === DungeonGenerator.GUILD) {
-        e.sprite.setVelocity(0, 0);
-        e._aggroed = false;
-        continue;
+      var isRageElemental = e._isRageElemental;
+      if (!isRageElemental) {
+        if (etile === DungeonGenerator.SAFE || etile === DungeonGenerator.GUILD) {
+          e.sprite.setVelocity(0, 0);
+          e._aggroed = false;
+          continue;
+        }
+        if (_carlInSafe) e._aggroed = false;
       }
-      if (_carlInSafe) e._aggroed = false;
       // Goblin Pass: goblins + fairies non-hostile to pass holders
       if (_hasGoblinPass && e._goblinFaction) e._aggroed = false;
 
-      e.update(_carlX, _carlY, delta, this.enemyMissiles, this.corpses);
+      if (isRageElemental) {
+        e.update(_carlX, _carlY, delta, this.enemyMissiles, this.corpses, _carlInSafe);
+        // Elemental rampages: kills nearby mobs and counts them toward its quota
+        if (!e._exiled && !e._dead) this._rageElementalMobKills(e);
+      } else {
+        e.update(_carlX, _carlY, delta, this.enemyMissiles, this.corpses);
+      }
 
       if (!this._combatHintShown && e._aggroed) {
         this._combatHintShown = true;
@@ -2656,6 +2684,85 @@ var GameScene = new Phaser.Class({
     if (nowIn >= 0 && prev < 0) {
       this.messages.push(MessageSystem.guildGuide(this.currentFloor));
     }
+  },
+
+  _onUrinate: function () {
+    var scene = this;
+    if (this.isInSafeRoom()) {
+      this.messages.push('DESIGNATED RESTROOM FACILITIES IN USE. BORANT THANKS YOU FOR YOUR COMPLIANCE.');
+      return;
+    }
+    // Already active — the elemental doesn't stack
+    if (this._rageElemental && !this._rageElemental.isDead()) {
+      this.messages.push('THE ELEMENTAL NOTES YOUR CONTINUED DISREGARD FOR FACILITY ETIQUETTE.');
+      return;
+    }
+    this.messages.push('ACHIEVEMENT UNLOCKED: "WHEN NATURE CALLS." YOU HAVE URINATED OUTSIDE A DESIGNATED RESTROOM. THE DUNGEON IS AWARE.');
+    this.time.delayedCall(1800, function () {
+      scene._spawnRageElemental();
+    });
+  },
+
+  _spawnRageElemental: function () {
+    var scene = this;
+    var cx = this.carl.x(), cy = this.carl.y();
+    // Spawn off-screen — 220px to either side, so player sees it arrive
+    var sx = cx + (Math.random() < 0.5 ? -220 : 220);
+    var sy = cy + (Math.random() - 0.5) * 100;
+    var elem = new EnemyFactory.RageElementalEnemy(this, sx, sy);
+    this.physics.add.collider(elem.sprite, this.wallLayer);
+
+    elem.setGravityCallback(function (dmg) {
+      var gravDmg = scene.carl.receiveHit(dmg, 'Rage Elemental');
+      if (gravDmg > 0) {
+        scene._staggerCarl(elem.sprite.x, elem.sprite.y);
+        if (!scene._rageGravAchievement) {
+          scene._rageGravAchievement = true;
+          scene.time.delayedCall(800, function () {
+            scene.messages.push('ACHIEVEMENT UNLOCKED: "WHAT GOES UP..." REWARD: "MORE DURABLE THAN A MONKEY NAMED ALBERT."');
+          });
+        }
+      }
+    });
+
+    elem.setSafeExitCallback(function () {
+      scene.messages.push('THE ELEMENTAL RETREATS FROM SACRED GROUND. IT WILL RETURN.');
+    });
+
+    elem.onDeath(function () {
+      scene._rageElemental = null;
+      scene.messages.push('THE RAGE ELEMENTAL HAS CLAIMED ITS QUOTA. IT DISSIPATES. THE DUNGEON WATCHES IN SILENCE.');
+    });
+
+    this.enemies.push(elem);
+    this._rageElemental = elem;
+    this._rageMobKills  = 0;
+
+    this.messages.push('A RAGE ELEMENTAL HAS MANIFESTED. IT WILL CLAIM 666 SOULS. GRUBS DO NOT COUNT. FIND A BATHROOM.');
+    this.cameras.main.shake(600, 0.022);
+  },
+
+  _rageElementalMobKills: function (elem) {
+    var KILL_R2 = 40 * 40, SEEK_R2 = 300 * 300;
+    var ex = elem.sprite.x, ey = elem.sprite.y;
+    var nearMob = null, nearD2 = Infinity;
+    var scene = this;
+    for (var i = this.enemies.length - 1; i >= 0; i--) {
+      var mob = this.enemies[i];
+      if (mob === elem || mob.isDead() || mob._isRageElemental) continue;
+      var dx = mob.sprite.x - ex, dy = mob.sprite.y - ey;
+      var d2 = dx * dx + dy * dy;
+      if (d2 < SEEK_R2 && d2 < nearD2) { nearD2 = d2; nearMob = mob; }
+      if (d2 < KILL_R2) {
+        mob.takeDamage(9999);
+        if (mob.isDead()) {
+          scene._rageMobKills++;
+          scene._floatText(ex, ey - 28, (666 - scene._rageMobKills) + ' SOULS REMAIN', '#cc44ff', 10);
+          if (scene._rageMobKills >= 666) elem.takeDamage(999999);
+        }
+      }
+    }
+    elem._nearestMob = nearMob;
   },
 
   _startTutorial: function () {

@@ -96,6 +96,7 @@ var IntroScene = new Phaser.Class({
 
   _showButtons: function (W, H) {
     var scene = this;
+    scene._buttonsReady = true;
     var saved = SaveSystem.load();
 
     function makeBtn(label, sub, x, y, w, onClick) {
@@ -138,7 +139,8 @@ var IntroScene = new Phaser.Class({
     if (freshStart) SaveSystem.clear();
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.time.delayedCall(420, function () {
-      scene.scene.start('GameScene');
+      // New game → Mordecai cold-open cutscene first. Resume → skip straight to game.
+      scene.scene.start(freshStart ? 'CutsceneScene' : 'GameScene');
     });
   },
 });
