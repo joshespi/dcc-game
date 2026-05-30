@@ -315,6 +315,7 @@ var GameScene = new Phaser.Class({
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this._interactCd = 0;
 
+
     // ── Carl callbacks ───────────────────────────────────────────────────────
     this.carl.onAttack(function (swingBox, dmg, attackType, isCrit) {
       scene._processMeleeSwing(swingBox, dmg, attackType, isCrit);

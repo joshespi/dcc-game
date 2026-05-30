@@ -146,10 +146,12 @@ var UIScene = new Phaser.Class({
     }).setDepth(203).setOrigin(1, 0).setAlpha(0);
 
     // ── Minimap ───────────────────────────────────────────────────────────────
-    var MM_SIZE = 96;  // pixel size of the minimap square
+    var MM_SIZE   = 96;   // pixel size of the minimap square
+    var MM_RADIUS = 12;   // tile radius around player shown in HUD minimap
     var MM_X = W - MM_SIZE - 10;
     var MM_Y = 48;
     this._mmX = MM_X; this._mmY = MM_Y; this._mmSize = MM_SIZE;
+    this._mmRadius = MM_RADIUS;
 
     // Dark backing — stored for HUD lock/unlock visibility
     this._mmBg1 = this.add.rectangle(MM_X, MM_Y, MM_SIZE, MM_SIZE, 0x000000, 0.7)
@@ -157,18 +159,40 @@ var UIScene = new Phaser.Class({
     this._mmBg2 = this.add.rectangle(MM_X, MM_Y, MM_SIZE, MM_SIZE, 0x334466)
       .setOrigin(0, 0).setDepth(206).setFillStyle(0, 0).setStrokeStyle(1, 0x334466);
 
-    // Canvas texture for tile dots — redrawn each time dungeon changes
+    // Canvas texture — redrawn each time player moves a tile
     this._mmCanvas = document.createElement('canvas');
     this._mmCanvas.width  = MM_SIZE;
     this._mmCanvas.height = MM_SIZE;
     this._mmTex = this.textures.addCanvas('minimap_bg', this._mmCanvas);
     this._mmImage = this.add.image(MM_X, MM_Y, 'minimap_bg').setOrigin(0, 0).setDepth(207);
-    this._mmDungeonKey = null;  // track when dungeon changes (floor transition)
+    this._mmDungeonKey = null;
+    this._mmCarlTx = -1; this._mmCarlTy = -1;
 
-    // Carl dot (yellow), stairs dot (green), boss dot (red) — updated each frame
-    this._mmCarl   = this.add.rectangle(0, 0, 3, 3, 0xffdd44).setDepth(209).setOrigin(0.5);
-    this._mmStairs = this.add.rectangle(0, 0, 3, 3, 0x44ff88).setDepth(208).setOrigin(0.5);
+    // Carl dot always at canvas center. Stairs/boss positioned relative to player.
+    var mmCx = MM_X + MM_SIZE / 2, mmCy = MM_Y + MM_SIZE / 2;
+    this._mmCarl   = this.add.rectangle(mmCx, mmCy, 3, 3, 0xffdd44).setDepth(209).setOrigin(0.5);
+    this._mmStairs = this.add.rectangle(0, 0, 3, 3, 0x44ff88).setDepth(208).setOrigin(0.5).setVisible(false);
     this._mmBoss   = this.add.rectangle(0, 0, 4, 4, 0xff3322).setDepth(208).setOrigin(0.5).setVisible(false);
+
+    // ── Full-map overlay (M key) ──────────────────────────────────────────────
+    var FMW = Math.min(W - 40, 480), FMH = Math.min(H - 40, 480);
+    var FMX = Math.floor((W - FMW) / 2), FMY = Math.floor((H - FMH) / 2);
+    this._fmOpen   = false;
+    this._fmCanvas = document.createElement('canvas');
+    this._fmCanvas.width  = FMW;
+    this._fmCanvas.height = FMH;
+    this._fmTex    = this.textures.addCanvas('fullmap_bg', this._fmCanvas);
+    this._fmBg     = this.add.rectangle(FMX, FMY, FMW, FMH, 0x000000, 0.88).setOrigin(0, 0).setDepth(300).setVisible(false);
+    this._fmImage  = this.add.image(FMX, FMY, 'fullmap_bg').setOrigin(0, 0).setDepth(301).setVisible(false);
+    this._fmBorder = this.add.rectangle(FMX, FMY, FMW, FMH, 0x334466).setOrigin(0, 0).setDepth(302).setFillStyle(0, 0).setStrokeStyle(1, 0x334466).setVisible(false);
+    this._fmLabel  = this.add.text(FMX + FMW / 2, FMY + 6, '[M] CLOSE MAP', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#556677'
+    }).setDepth(303).setOrigin(0.5, 0).setVisible(false);
+    this._fmCarl   = this.add.rectangle(0, 0, 4, 4, 0xffdd44).setDepth(304).setOrigin(0.5).setVisible(false);
+    this._fmStairs = this.add.rectangle(0, 0, 4, 4, 0x44ff88).setDepth(304).setOrigin(0.5).setVisible(false);
+    this._fmBoss2  = this.add.rectangle(0, 0, 5, 5, 0xff3322).setDepth(304).setOrigin(0.5).setVisible(false);
+    this._fmX = FMX; this._fmY = FMY; this._fmW = FMW; this._fmH = FMH;
+    this._fmDirty  = true;
 
     // ── Social metrics — below minimap ───────────────────────────────────────
     this._viewsText = this.add.text(W - 10, MM_Y + MM_SIZE + 6, '', {
@@ -433,8 +457,13 @@ var UIScene = new Phaser.Class({
       }
     });
     this.input.keyboard.on('keydown-ESC', function () {
+      if (scene._fmOpen) { scene.toggleFullMap(); return; }
       if (scene._shopOpen) scene.registry.set('shopOpen', false);
       if (scene._skillsOpen) scene._closeSkillsPanel();
+    });
+
+    this.input.keyboard.on('keydown-M', function () {
+      if (scene._hudUnlocked) scene.toggleFullMap();
     });
 
     // Watch shopData registry for open/update/close.
@@ -1476,56 +1505,94 @@ var UIScene = new Phaser.Class({
 
     // ── Minimap ───────────────────────────────────────────────────────────────
     var dungeon = this.registry.get('dungeon');
-    if (dungeon) {
-      // Redraw when dungeon changes (new floor) or fog reveals new tiles
+    if (dungeon && gameScene && gameScene.carl) {
       var fogDirty = this.registry.get('fogDirty');
-      if (dungeon !== this._mmDungeonKey || fogDirty) {
-        if (dungeon !== this._mmDungeonKey) {
-          this._mmStairsPlaced = false;
-          this._mmBossPlaced   = false;
-        }
+      if (dungeon !== this._mmDungeonKey) {
         this._mmDungeonKey = dungeon;
-        if (fogDirty) this.registry.set('fogDirty', false);
-        var fog = this.registry.get('fogGrid');
-        this._drawMinimapTiles(dungeon, fog);
+        this._mmCarlTx = -1; this._mmCarlTy = -1;
+        this._fmDirty = true;
       }
-      if (gameScene && gameScene.carl) {
-        var scale = this._mmSize / dungeon.mapW;
-        var cTx = Math.floor(gameScene.carl.x() / 32);
-        var cTy = Math.floor(gameScene.carl.y() / 32);
-        if (cTx !== this._mmCarlTx || cTy !== this._mmCarlTy) {
-          this._mmCarlTx = cTx; this._mmCarlTy = cTy;
-          this._mmCarl.setPosition(
-            this._mmX + (cTx + 0.5) * scale,
-            this._mmY + (cTy + 0.5) * scale
+      if (fogDirty) {
+        this.registry.set('fogDirty', false);
+        this._fmDirty = true;
+      }
+
+      var fog   = this.registry.get('fogGrid');
+      var cTx   = Math.floor(gameScene.carl.x() / 32);
+      var cTy   = Math.floor(gameScene.carl.y() / 32);
+      var moved = (cTx !== this._mmCarlTx || cTy !== this._mmCarlTy);
+      if (moved) {
+        this._mmCarlTx = cTx; this._mmCarlTy = cTy;
+        this._drawMinimapViewport(dungeon, fog, cTx, cTy);
+      }
+
+      // Carl dot always at canvas center
+      var mmCx = this._mmX + this._mmSize / 2;
+      var mmCy = this._mmY + this._mmSize / 2;
+      this._mmCarl.setPosition(mmCx, mmCy);
+
+      // Tile-to-pixel scale inside the viewport canvas
+      var tileSize = this._mmSize / (this._mmRadius * 2 + 1);
+
+      // Stairs dot — relative to player position
+      if (dungeon.stairsTile) {
+        var sdx = dungeon.stairsTile.x - cTx;
+        var sdy = dungeon.stairsTile.y - cTy;
+        var sVisible = Math.abs(sdx) <= this._mmRadius && Math.abs(sdy) <= this._mmRadius;
+        this._mmStairs.setVisible(sVisible);
+        if (sVisible) {
+          this._mmStairs.setPosition(
+            mmCx + sdx * tileSize,
+            mmCy + sdy * tileSize
           );
         }
-        if (!this._mmStairsPlaced) {
-          if (dungeon.stairsTile) {
-            this._mmStairs.setVisible(true).setPosition(
-              this._mmX + (dungeon.stairsTile.x + 0.5) * scale,
-              this._mmY + (dungeon.stairsTile.y + 0.5) * scale
-            );
-          } else {
-            this._mmStairs.setVisible(false);
-          }
-          this._mmStairsPlaced = true;
+      } else {
+        this._mmStairs.setVisible(false);
+      }
+
+      // Boss dot — relative to player
+      var gs = this._gameScene;
+      var bossAlive = !!(gs && gs._bossEnemy && !gs._bossEnemy.isDead());
+      if (bossAlive && dungeon.bossRoom) {
+        var bTx = Math.floor(dungeon.bossRoom.x + dungeon.bossRoom.w / 2);
+        var bTy = Math.floor(dungeon.bossRoom.y + dungeon.bossRoom.h / 2);
+        var bdx = bTx - cTx, bdy = bTy - cTy;
+        var bVisible = Math.abs(bdx) <= this._mmRadius && Math.abs(bdy) <= this._mmRadius;
+        this._mmBoss.setVisible(bVisible);
+        if (bVisible) this._mmBoss.setPosition(mmCx + bdx * tileSize, mmCy + bdy * tileSize);
+      } else {
+        this._mmBoss.setVisible(false);
+      }
+
+      // ── Full-map overlay update ───────────────────────────────────────────
+      if (this._fmOpen) {
+        if (this._fmDirty || moved) {
+          this._fmDirty = false;
+          this._drawFullMap(dungeon, fog);
         }
-        var gs = this._gameScene;
-        var bossAlive = !!(gs && gs._bossEnemy && !gs._bossEnemy.isDead());
-        if (bossAlive !== this._mmBossLastAlive || !this._mmBossPlaced) {
-          this._mmBossLastAlive = bossAlive;
-          this._mmBossPlaced = true;
-          if (dungeon.bossRoom) {
-            var bcx = dungeon.bossRoom.x + dungeon.bossRoom.w / 2;
-            var bcy = dungeon.bossRoom.y + dungeon.bossRoom.h / 2;
-            this._mmBoss.setVisible(bossAlive).setPosition(
-              this._mmX + bcx * scale,
-              this._mmY + bcy * scale
-            );
-          } else {
-            this._mmBoss.setVisible(false);
-          }
+        // Carl dot on full map
+        var fmScale = Math.min(this._fmW / dungeon.mapW, this._fmH / dungeon.mapH);
+        var fmOffX  = (this._fmW - dungeon.mapW * fmScale) / 2;
+        var fmOffY  = (this._fmH - dungeon.mapH * fmScale) / 2;
+        this._fmCarl.setPosition(
+          this._fmX + fmOffX + (cTx + 0.5) * fmScale,
+          this._fmY + fmOffY + (cTy + 0.5) * fmScale
+        );
+        if (dungeon.stairsTile) {
+          this._fmStairs.setVisible(true).setPosition(
+            this._fmX + fmOffX + (dungeon.stairsTile.x + 0.5) * fmScale,
+            this._fmY + fmOffY + (dungeon.stairsTile.y + 0.5) * fmScale
+          );
+        }
+        if (bossAlive && dungeon.bossRoom) {
+          var fbTx = dungeon.bossRoom.x + dungeon.bossRoom.w / 2;
+          var fbTy = dungeon.bossRoom.y + dungeon.bossRoom.h / 2;
+          this._fmBoss2.setVisible(true).setPosition(
+            this._fmX + fmOffX + fbTx * fmScale,
+            this._fmY + fmOffY + fbTy * fmScale
+          );
+        } else {
+          this._fmBoss2.setVisible(false);
         }
       }
     }
@@ -1562,44 +1629,97 @@ var UIScene = new Phaser.Class({
     }
   },
 
-  _drawMinimapTiles: function (dungeon, fog) {
-    var ctx = this._mmCanvas.getContext('2d');
+  _drawMinimapViewport: function (dungeon, fog, cTx, cTy) {
+    var ctx  = this._mmCanvas.getContext('2d');
     var size = this._mmSize;
-    var W = dungeon.mapW, H = dungeon.mapH;
-    var scale = size / W;
+    var R    = this._mmRadius;
+    var DIM  = R * 2 + 1;
+    var ts   = size / DIM;  // pixels per tile
+    var W    = dungeon.mapW, H = dungeon.mapH;
 
     ctx.clearRect(0, 0, size, size);
 
-    for (var ty = 0; ty < H; ty++) {
-      for (var tx = 0; tx < W; tx++) {
+    for (var dy = -R; dy <= R; dy++) {
+      var ty = cTy + dy;
+      if (ty < 0 || ty >= H) continue;
+      for (var dx = -R; dx <= R; dx++) {
+        var tx = cTx + dx;
+        if (tx < 0 || tx >= W) continue;
+
         var tile = dungeon.tiles[ty][tx];
-        // Safe rooms + guild hall always visible on minimap (lore: glows on map)
         var alwaysVisible = tile === DungeonGenerator.SAFE || tile === DungeonGenerator.GUILD;
         if (fog && !fog[ty * W + tx] && !alwaysVisible) continue;
 
-        var px = tx * scale;
-        var py = ty * scale;
-        var ps = Math.max(1, scale - 0.5);
+        var px = (dx + R) * ts;
+        var py = (dy + R) * ts;
 
         if (tile === DungeonGenerator.FLOOR || tile === DungeonGenerator.DOOR || tile === DungeonGenerator.START) {
           ctx.fillStyle = '#334455';
-          ctx.fillRect(px, py, ps, ps);
         } else if (tile === DungeonGenerator.STAIRS) {
           ctx.fillStyle = '#44ffaa';
-          ctx.fillRect(px, py, ps, ps);
         } else if (tile === DungeonGenerator.SAFE) {
-          // Safe rooms glow amber — brighter if already revealed
           ctx.fillStyle = fog && fog[ty * W + tx] ? '#cc8833' : '#aa6622';
-          ctx.fillRect(px, py, ps, ps);
         } else if (tile === DungeonGenerator.GUILD) {
           ctx.fillStyle = '#6655cc';
-          ctx.fillRect(px, py, ps, ps);
+        } else {
+          continue;
         }
-        // Walls left transparent
+        ctx.fillRect(px, py, Math.max(1, ts - 0.5), Math.max(1, ts - 0.5));
       }
     }
 
     this._mmTex.refresh();
+  },
+
+  _drawFullMap: function (dungeon, fog) {
+    var ctx = this._fmCanvas.getContext('2d');
+    var FW  = this._fmW, FH = this._fmH;
+    var MW  = dungeon.mapW, MH = dungeon.mapH;
+    var scale  = Math.min(FW / MW, FH / MH);
+    var offX   = Math.floor((FW - MW * scale) / 2);
+    var offY   = Math.floor((FH - MH * scale) / 2);
+    var ts     = Math.max(1, scale);
+
+    ctx.clearRect(0, 0, FW, FH);
+
+    for (var ty = 0; ty < MH; ty++) {
+      for (var tx = 0; tx < MW; tx++) {
+        var tile = dungeon.tiles[ty][tx];
+        var alwaysVisible = tile === DungeonGenerator.SAFE || tile === DungeonGenerator.GUILD;
+        if (fog && !fog[ty * MW + tx] && !alwaysVisible) continue;
+
+        var px = offX + tx * scale;
+        var py = offY + ty * scale;
+
+        if (tile === DungeonGenerator.FLOOR || tile === DungeonGenerator.DOOR || tile === DungeonGenerator.START) {
+          ctx.fillStyle = '#334455';
+        } else if (tile === DungeonGenerator.STAIRS) {
+          ctx.fillStyle = '#44ffaa';
+        } else if (tile === DungeonGenerator.SAFE) {
+          ctx.fillStyle = fog && fog[ty * MW + tx] ? '#cc8833' : '#aa6622';
+        } else if (tile === DungeonGenerator.GUILD) {
+          ctx.fillStyle = '#6655cc';
+        } else {
+          continue;
+        }
+        ctx.fillRect(px, py, ts, ts);
+      }
+    }
+
+    this._fmTex.refresh();
+  },
+
+  toggleFullMap: function () {
+    this._fmOpen = !this._fmOpen;
+    var vis = this._fmOpen;
+    this._fmBg.setVisible(vis);
+    this._fmImage.setVisible(vis);
+    this._fmBorder.setVisible(vis);
+    this._fmLabel.setVisible(vis);
+    this._fmCarl.setVisible(vis);
+    this._fmStairs.setVisible(vis && !!this.registry.get('dungeon') && !!this.registry.get('dungeon').stairsTile);
+    if (vis) { this._fmDirty = true; }
+    if (!vis) { this._fmBoss2.setVisible(false); }
   },
 
   _setLockedHUDVisible: function (visible) {
