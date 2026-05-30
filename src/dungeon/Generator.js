@@ -235,15 +235,15 @@ var DungeonGenerator = (function () {
     // First carve a grid of passages inside the block
     var ALLEY_SPACING = 4;
 
-    // Horizontal alleys
+    // Horizontal alleys — extend to block edges so each alley directly abuts the artery
     for (var ay = b.y + 2; ay < b.y + b.h - 2; ay += ALLEY_SPACING) {
-      for (var ax = b.x + 1; ax < b.x + b.w - 1; ax++) {
+      for (var ax = b.x; ax < b.x + b.w; ax++) {
         if (tiles[ay] && tiles[ay][ax] === WALL) tiles[ay][ax] = FLOOR;
       }
     }
-    // Vertical alleys
+    // Vertical alleys — same: extend to block edges
     for (var ax2 = b.x + 2; ax2 < b.x + b.w - 2; ax2 += ALLEY_SPACING) {
-      for (var ay2 = b.y + 1; ay2 < b.y + b.h - 1; ay2++) {
+      for (var ay2 = b.y; ay2 < b.y + b.h; ay2++) {
         if (tiles[ay2] && tiles[ay2][ax2] === WALL) tiles[ay2][ax2] = FLOOR;
       }
     }
@@ -264,16 +264,6 @@ var DungeonGenerator = (function () {
         }
       }
     }
-
-    // Connect each block to adjacent arteries with at least one opening
-    // (arteries are already carved; blocks abut them, so edge tiles touching artery = open)
-    // Carve one guaranteed connection on each side
-    var midX = Math.floor(b.x + b.w / 2);
-    var midY = Math.floor(b.y + b.h / 2);
-    if (b.y > 1)            tiles[b.y][midX]       = FLOOR; // top
-    if (b.y + b.h < this.mapH - 1) tiles[b.y + b.h - 1][midX] = FLOOR; // bottom
-    if (b.x > 1)            tiles[midY][b.x]       = FLOOR; // left
-    if (b.x + b.w < this.mapW - 1) tiles[midY][b.x + b.w - 1] = FLOOR; // right
   };
 
   Generator.prototype._carveRect = function (tiles, x, y, w, h, tileType) {

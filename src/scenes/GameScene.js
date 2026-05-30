@@ -213,8 +213,8 @@ var GameScene = new Phaser.Class({
     this._nearBopca  = null;
     for (var bsi = 0; bsi < this._safeRooms.length; bsi++) {
       var bsr = this._safeRooms[bsi];
-      var bmx = (bsr.x + Math.floor(bsr.w / 2)) * 32 + 16;
-      var bmy = (bsr.y + Math.floor(bsr.h / 2) - 1) * 32 + 16;
+      var bmx = (bsr.x + 1) * 32 + 16;
+      var bmy = (bsr.y + Math.floor(bsr.h / 2)) * 32 + 16;
       var bmspr = this.add.image(bmx, bmy, 'bopca').setDepth(11);
       this.add.text(bmx, bmy - 20, 'TALLY', {
         fontFamily: 'monospace', fontSize: '8px', color: '#aaddff',
