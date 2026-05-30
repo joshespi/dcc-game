@@ -132,16 +132,29 @@ var GameScene = new Phaser.Class({
     this._bossTriggered    = false;
     this._bossLoopEvent    = null;
     this._bossEnemy        = null;
+
+    var npcKey = this.currentFloor >= 2 ? 'bugaboo' : 'guildmaster';
     if (this._guildHall) {
       var ghCX = (this._guildHall.x + Math.floor(this._guildHall.w / 2)) * 32 + 16;
       var ghCY = (this._guildHall.y + Math.floor(this._guildHall.h / 2) - 1) * 32 + 16;
-      var npcKey = this.currentFloor >= 2 ? 'bugaboo' : 'guildmaster';
       this._guildNPC = this.add.image(ghCX, ghCY, npcKey).setDepth(8).setScale(1.2);
-      // Subtle gold glow pulse
       this.tweens.add({
         targets: this._guildNPC, alpha: 0.75, duration: 1200,
         yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
       });
+    }
+
+    // ── Secondary guild halls — Mordecai in safe rooms (~1:10) ────────────────
+    this._secondaryGuildHalls = dungeon.secondaryGuildHalls || [];
+    this._secondaryGuildNPCs  = [];
+    this._inSecondaryGuild    = -1; // index of room Carl is inside, or -1
+    for (var sgi = 0; sgi < this._secondaryGuildHalls.length; sgi++) {
+      var sgr = this._secondaryGuildHalls[sgi];
+      var sgCX = (sgr.x + Math.floor(sgr.w / 2)) * 32 + 16;
+      var sgCY = (sgr.y + Math.floor(sgr.h / 2) - 1) * 32 + 16;
+      var sgSpr = this.add.image(sgCX, sgCY, npcKey).setDepth(8).setScale(1.0);
+      sgSpr.setAlpha(0.85);
+      this._secondaryGuildNPCs.push(sgSpr);
     }
 
     // ── Physics world bounds ────────────────────────────────────────────────
@@ -925,6 +938,7 @@ var GameScene = new Phaser.Class({
     if (this._activeBubbles && this._activeBubbles.length) this._updateBubbles(nowMs);
     this._checkSafeRoomEntry();
     this._checkGuildHallEntry();
+    this._checkSecondaryGuildEntry();
     this._checkBossRoomEntry();
   },
 
@@ -2626,6 +2640,21 @@ var GameScene = new Phaser.Class({
       this.messages.push(MessageSystem.guildGuide(this.currentFloor));
     } else if (!this._tutorialRunning) {
       this._startTutorial();
+    }
+  },
+
+  _checkSecondaryGuildEntry: function () {
+    if (!this._secondaryGuildHalls.length) return;
+    var cx = this.carl.x(), cy = this.carl.y();
+    var nowIn = -1;
+    for (var i = 0; i < this._secondaryGuildHalls.length; i++) {
+      if (this._isInsideRoom(cx, cy, this._secondaryGuildHalls[i])) { nowIn = i; break; }
+    }
+    if (nowIn === this._inSecondaryGuild) return;
+    var prev = this._inSecondaryGuild;
+    this._inSecondaryGuild = nowIn;
+    if (nowIn >= 0 && prev < 0) {
+      this.messages.push(MessageSystem.guildGuide(this.currentFloor));
     }
   },
 

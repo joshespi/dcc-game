@@ -183,11 +183,22 @@ var DungeonGenerator = (function () {
       }
     }
 
+    // ── Secondary guild halls — ~1 in 10 safe rooms (floors 1-3, lore) ─────────
+    var secondaryGuildHalls = [];
+    if (floorNum <= 3 && safeRooms.length > 0) {
+      var shuffled = _shuffled(safeRooms.slice());
+      var ghCount = Math.max(1, Math.round(safeRooms.length / 10));
+      for (var ghi = 0; ghi < ghCount && ghi < shuffled.length; ghi++) {
+        secondaryGuildHalls.push(shuffled[ghi]);
+      }
+    }
+
     return {
       tiles: tiles,
       rooms: rooms,
       safeRooms: safeRooms,
       guildHall: guildHall,
+      secondaryGuildHalls: secondaryGuildHalls,
       bossRoom: bossRoom,
       startPos: { x: startX * 32 + 16, y: startY * 32 + 16 },
       stairsTile: stairsTile,
