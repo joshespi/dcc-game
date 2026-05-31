@@ -1,6 +1,6 @@
 {
   "name": "dungeon-crawler-carl",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "scripts": {
     "start": "python3 -m http.server 8080",
     "serve": "npx serve . -p 8080"

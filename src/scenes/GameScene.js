@@ -98,6 +98,7 @@ var GameScene = new Phaser.Class({
 
     // ── Floor decorations ────────────────────────────────────────────────────
     this._spawnFloorDecor(dungeon.tiles, MAP_W, MAP_H);
+    this._spawnSafeRoomDecor(dungeon.safeRooms);
 
     // Share dungeon layout with UIScene for minimap
     this.registry.set('dungeon', {
@@ -1017,6 +1018,43 @@ var GameScene = new Phaser.Class({
           type = Math.floor(Math.random() * 5);
         }
         _drawDecor(gr, wx, wy, type);
+      }
+    }
+  },
+
+  _spawnSafeRoomDecor: function (safeRooms) {
+    var gr = this.add.graphics().setDepth(2);
+    for (var i = 0; i < safeRooms.length; i++) {
+      var sr   = safeRooms[i];
+      var ry   = sr.y * 32;
+      var iw   = (sr.w - 2) * 32;   // interior width (excl. walls)
+      var ix   = (sr.x + 1) * 32;   // interior left edge
+
+      // Counter — top interior wall, full width
+      gr.fillStyle(0x7a5c3a, 1.0);
+      gr.fillRect(ix, ry + 36, iw, 10);
+      gr.fillStyle(0x9a7c5a, 0.9);
+      gr.fillRect(ix, ry + 36, iw, 3);  // highlight edge
+
+      // Water fountain — left interior, mid-height
+      var fontY = ry + Math.floor(sr.h / 2) * 32 - 4;
+      gr.fillStyle(0x1a7799, 1.0);
+      gr.fillRect(ix + 2, fontY, 14, 18);
+      gr.fillStyle(0x44bbdd, 0.8);
+      gr.fillRect(ix + 4, fontY + 2, 10, 6);
+
+      // 5 cots — bottom interior row, evenly spaced
+      var cotY  = ry + (sr.h - 2) * 32 + 6;
+      var cotW  = 26, cotH = 14;
+      var gap   = Math.floor((iw - 5 * cotW) / 6);
+      for (var c = 0; c < 5; c++) {
+        var cotX = ix + gap + c * (cotW + gap);
+        gr.fillStyle(0x6b5540, 1.0);
+        gr.fillRect(cotX, cotY, cotW, cotH);
+        gr.fillStyle(0xd8d4c0, 1.0);
+        gr.fillRect(cotX + 2, cotY + 2, cotW - 4, cotH - 4);
+        gr.fillStyle(0xf0eeee, 1.0);
+        gr.fillRect(cotX + 2, cotY + 2, 6, cotH - 4);  // pillow
       }
     }
   },

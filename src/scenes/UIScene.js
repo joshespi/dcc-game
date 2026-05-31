@@ -163,6 +163,9 @@ var UIScene = new Phaser.Class({
     this._mmCanvas = document.createElement('canvas');
     this._mmCanvas.width  = MM_SIZE;
     this._mmCanvas.height = MM_SIZE;
+    // Textures are game-global and survive UIScene's stop on floor transition;
+    // addCanvas returns null on a duplicate key, so drop the stale one first.
+    if (this.textures.exists('minimap_bg')) this.textures.remove('minimap_bg');
     this._mmTex = this.textures.addCanvas('minimap_bg', this._mmCanvas);
     this._mmImage = this.add.image(MM_X, MM_Y, 'minimap_bg').setOrigin(0, 0).setDepth(207);
     this._mmDungeonKey = null;
@@ -181,6 +184,7 @@ var UIScene = new Phaser.Class({
     this._fmCanvas = document.createElement('canvas');
     this._fmCanvas.width  = FMW;
     this._fmCanvas.height = FMH;
+    if (this.textures.exists('fullmap_bg')) this.textures.remove('fullmap_bg');
     this._fmTex    = this.textures.addCanvas('fullmap_bg', this._fmCanvas);
     this._fmBg     = this.add.rectangle(FMX, FMY, FMW, FMH, 0x000000, 0.88).setOrigin(0, 0).setDepth(300).setVisible(false);
     this._fmImage  = this.add.image(FMX, FMY, 'fullmap_bg').setOrigin(0, 0).setDepth(301).setVisible(false);
@@ -262,26 +266,31 @@ var UIScene = new Phaser.Class({
 
 
     // ── Message feeds (two bottom strips) ─────────────────────────────────────
+    // Text is inset right of the action buttons (left edge ~282px) so long
+    // messages never draw over them; the translucent bars still span full width.
+    var MSG_LEFT = ABX4 + ABW + 10;
+    var MSG_CX   = (MSG_LEFT + W - 10) / 2;
+    var MSG_W    = W - MSG_LEFT - 10;
     // Top strip: SYSTEM announcements (Borant Corp / achievements) — yellow/gold
     this._sysBg = this.add.rectangle(0, H - 48, W, 24, 0x14110a, 0.78)
       .setOrigin(0, 0).setDepth(199);
-    this._sysText = this.add.text(W / 2, H - 36, '', {
+    this._sysText = this.add.text(MSG_CX, H - 36, '', {
       fontFamily: 'monospace', fontSize: '12px', color: '#ffcc55',
-      align: 'center', wordWrap: { width: W - 20 }
+      align: 'center', wordWrap: { width: MSG_W }
     }).setDepth(204).setOrigin(0.5);
     // Bottom strip: CHARACTER chat + game feedback — cyan
     this._chatBg = this.add.rectangle(0, H - 24, W, 24, 0x0a1014, 0.78)
       .setOrigin(0, 0).setDepth(199);
-    this._chatText = this.add.text(W / 2, H - 12, '', {
+    this._chatText = this.add.text(MSG_CX, H - 12, '', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaddff',
-      align: 'center', wordWrap: { width: W - 20 }
+      align: 'center', wordWrap: { width: MSG_W }
     }).setDepth(204).setOrigin(0.5);
 
     // ── Hotlist bar — hidden for now, rework later ────────────────────────────
     this._hotlistSlots = [];
 
-    // Persistent mini controls line — stays dim in corner
-    this._hint = this.add.text(W / 2, H - 48,
+    // Persistent mini controls line — sits above the action buttons + message strips
+    this._hint = this.add.text(W / 2, H - 64,
       'WASD move   SPACE attack   E potion   Q missile   R surge   I inventory   K skills',
       { fontFamily: 'monospace', fontSize: '10px', color: '#998aaa' }
     ).setDepth(203).setOrigin(0.5);

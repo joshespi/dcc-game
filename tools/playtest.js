@@ -60,9 +60,13 @@ async function main() {
 
   console.log('→ click NEW GAME');
   await page.mouse.click(480, 576);
-  await wait(3500);
+  await wait(1500);
+  // NEW GAME plays the Mordecai cutscene before GameScene; skip it.
+  console.log('→ skip cutscene (Space)');
+  await tap('Space');
+  await wait(1500);
 
-  await waitForDcc();
+  await waitForDcc(15000);
   const s0 = await dccState();
   console.log('  state:', JSON.stringify({ floor: s0.floor, hp: s0.hp, level: s0.level, hasMordecai: !!s0.mordecai }));
   await shot('02-spawned');
