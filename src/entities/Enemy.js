@@ -45,6 +45,7 @@ var EnemyFactory = (function () {
     this._wanderVy       = 0;
     this._everHit        = false;
     this._hpPctLast      = -1;
+    this._baseTint       = null; // persistent tint restored after a damage flash
     this._barW = 28; this._barH = 4; this._barYOff = 18;
     this._hpBarLabel = null;
 
@@ -57,8 +58,14 @@ var EnemyFactory = (function () {
 
   Enemy.prototype._flashTint = function (color, ms) {
     var spr = this.sprite;
+    var self = this;
     spr.setTint(color);
-    this.scene.time.delayedCall(ms, function () { if (spr && spr.active) spr.clearTint(); });
+    // Restore a persistent tint (e.g. boss enrage) instead of clearing it outright.
+    this.scene.time.delayedCall(ms, function () {
+      if (!spr || !spr.active) return;
+      if (self._baseTint != null) spr.setTint(self._baseTint);
+      else spr.clearTint();
+    });
   };
 
   Enemy.prototype._revealHpBar = function () {
@@ -164,6 +171,29 @@ var EnemyFactory = (function () {
       fontFamily: 'monospace', fontSize: '9px', color: '#ffbbbb', stroke: '#000000', strokeThickness: 2,
     }).setDepth(13).setOrigin(0.5);
     this._updateHpBar();
+  };
+
+  var ELITE_AFFIXES = ['swift', 'vampiric', 'venomous', 'explosive'];
+
+  // Rare powerful variant (DCC "Elite"): much tankier + hits harder, purple-tinted.
+  // Keeps typeName intact so loot/crafting lookups still resolve; isElite drives display.
+  Enemy.prototype.makeElite = function () {
+    if (this.isElite) return;
+    this.isElite = true;
+    this.maxHp   = Math.round(this.maxHp * 2.2); this.hp = this.maxHp;
+    this.damage  = Math.round(this.damage * 1.5);
+    this.xpValue = Math.round(this.xpValue * 2.5);
+    this._baseTint = 0x9b30ff;        // persists through damage flashes
+    this.sprite.setTint(0x9b30ff);
+    // One random affix for combat variety. swift is passive; the rest hook combat.
+    this._affix = ELITE_AFFIXES[Math.floor(Math.random() * ELITE_AFFIXES.length)];
+    if (this._affix === 'swift') this.speed = Math.round(this.speed * 1.4);
+  };
+
+  Enemy.prototype.displayName = function () {
+    if (!this.isElite) return this.typeName;
+    var pre = this._affix ? this._affix.charAt(0).toUpperCase() + this._affix.slice(1) + ' ' : '';
+    return pre + 'Elite ' + this.typeName;
   };
 
   Enemy.prototype._die = function () {
@@ -1318,7 +1348,10 @@ var EnemyFactory = (function () {
 
   function createBoss(scene, x, y, floorNum) {
     var scale = 1 + (floorNum - 1) * 0.3;
-    var def = BOSS_DEFS[floorNum] || BOSS_DEFS[1];
+    // No own def yet (floor 3+): reuse the highest defined boss at or below this
+    // floor — a fresh Krakaren on floor 3 is lore-consistent ("there are more").
+    var nativeFloor = floorNum, def = BOSS_DEFS[floorNum];
+    while (!def && nativeFloor > 1) { nativeFloor--; def = BOSS_DEFS[nativeFloor]; }
     var bossDef = {
       name:        def.name,
       texture:     def.texture,
@@ -1338,6 +1371,7 @@ var EnemyFactory = (function () {
     boss.sprite.body.setOffset(Math.floor((48 - def.bodyW) / 2), Math.floor((48 - def.bodyH) / 2));
     boss.isBoss      = true;
     boss._bossType   = def.bossType;
+    boss._bossNativeFloor = nativeFloor; // deeper than this = a reused/repeat boss
     boss._noWander   = true;
     boss._phase      = 1;
     boss._slamCd     = 0;
@@ -1346,11 +1380,20 @@ var EnemyFactory = (function () {
   }
 
   // Types available per floor
-  function typesForFloor(floorNum) {
-    if (floorNum === 1) return ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_basher', 'trog_virtuoso', 'scatterer', 'scatterer', 'bad_llama', 'scat_thug'];
+  // Per-floor spawn rosters. Add a floor = add a row; no new branch.
+  var FLOOR_ROSTERS = {
+    1: ['rat', 'goblin', 'fairy', 'crack_camel', 'rot_sticker', 'trog_pygmy', 'trog_basher', 'trog_virtuoso', 'scatterer', 'scatterer', 'bad_llama', 'scat_thug'],
     // Floor 2: skeletons + dingoes + clurichauns + kobold riders + mind horrors + vespas (from pupa)
-    if (floorNum === 2) return ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider', 'mind_horror', 'laminak_elite'];
-    return ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];
+    2: ['skeleton', 'skeleton', 'goblin', 'rat', 'fairy', 'danger_dingo', 'brindle_grub', 'clurichaun', 'kobold_rider', 'kobold_rider', 'mind_horror', 'laminak_elite'],
+    // Floor 3 (The Over City): denser, tougher urban mix — humanoids, riders, ranged
+    3: ['skeleton', 'skeleton', 'goblin', 'danger_dingo', 'kobold_rider', 'clurichaun', 'mind_horror', 'fairy', 'scat_thug', 'crack_camel'],
+    // Floor 4 (The Iron Tangle): heavy hitters + venom + ranged — the roster's toughest
+    4: ['danger_dingo', 'kobold_rider', 'trog_virtuoso', 'bad_llama', 'mind_horror', 'laminak_elite', 'clurichaun', 'skeleton', 'crack_camel'],
+  };
+  var FLOOR_ROSTER_DEFAULT = ['skeleton', 'goblin', 'crack_camel', 'fairy', 'rat'];
+
+  function typesForFloor(floorNum) {
+    return FLOOR_ROSTERS[floorNum] || FLOOR_ROSTER_DEFAULT;
   }
 
   function _playHitSound(vol) {

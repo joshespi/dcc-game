@@ -43,6 +43,10 @@ var CrawlerStatus = (function () {
     this.maxMp = this.stats.int * 10;
     this.bossKilledFloor = 0;
     this.hasGoblinPass   = false;
+    // Race + class chosen at Floor 3 (production-trailer selection). null until then.
+    this.race        = null;
+    this.className    = null;
+    this.classChosen = false;
     // Temporary scroll/buff effects — set to 0 by default, non-zero while active
     this._swiftnessUntil   = 0;
     this._ironSkinDefense  = 0;
@@ -81,13 +85,45 @@ var CrawlerStatus = (function () {
     // Lore: stat points bank until Floor 3+ class selection, spent in safe room only
     if (this.floor < 3) return false;
     this.statPoints--;
-    this.stats[stat]++;
-    if (stat === 'int') this._syncMp();
-    if (stat === 'con') {
-      this.maxHp += 5;
-      this.hp = Math.min(this.hp + 5, this.maxHp);
-    }
+    this._applyStat(stat, 1);
     return true;
+  };
+
+  // Apply one stat delta with its side effects (con → maxHp, int → MP pool).
+  CrawlerStatus.prototype._applyStat = function (stat, n) {
+    if (VALID_STATS.indexOf(stat) === -1) return;
+    this.stats[stat] = Math.max(1, this.stats[stat] + n);
+    if (stat === 'int') this._syncMp();
+    if (stat === 'con' && n > 0) {
+      this.maxHp += 5 * n;
+      this.hp = Math.min(this.hp + 5 * n, this.maxHp);
+    }
+  };
+
+  // Floor 3 race + class pick: apply both stat blocks, grant distribution points.
+  CrawlerStatus.prototype.applyRaceClass = function (raceKey, classKey) {
+    var race = CrawlerStatus.RACES[raceKey];
+    var cls  = CrawlerStatus.CLASSES[classKey];
+    if (!race || !cls) return false;
+    var self = this;
+    function apply(deltas) {
+      if (!deltas) return;
+      Object.keys(deltas).forEach(function (k) { self._applyStat(k, deltas[k]); });
+    }
+    apply(race.stats);
+    apply(cls.stats);
+    this.statPoints += (race.statPoints || 0) + (cls.statPoints || 0);
+    this.race        = raceKey;
+    this.className   = classKey;
+    this.classChosen = true;
+    return true;
+  };
+
+  // Read a class-perk value (multiplier/bonus), or a default if no class / unset.
+  CrawlerStatus.prototype.perk = function (key, dflt) {
+    var c = this.className && CrawlerStatus.CLASSES[this.className];
+    var p = c && c.perk;
+    return (p && p[key] != null) ? p[key] : dflt;
   };
 
   // Keep maxMp = INT*10; called after any INT change
@@ -107,7 +143,7 @@ var CrawlerStatus = (function () {
   };
 
   CrawlerStatus.prototype.addViews     = function (n) { this.views     += n; };
-  CrawlerStatus.prototype.addFollowers = function (n) { this.followers += n; };
+  CrawlerStatus.prototype.addFollowers = function (n) { this.followers += Math.round(n * this.perk('followerMult', 1)); };
   CrawlerStatus.prototype.addFavorites = function (n) { this.favorites += n; };
 
   CrawlerStatus.prototype.effectiveDex = function (now) {
@@ -136,6 +172,7 @@ var CrawlerStatus = (function () {
 
   CrawlerStatus.prototype.heal = function (amount) {
     if (this.hasDebuff(DEBUFF_TAINT)) return 0;
+    amount = Math.round(amount * this.perk('healMult', 1)); // Cleric heals harder
     var prev = this.hp;
     this.hp = Math.min(this.maxHp, this.hp + amount);
     return this.hp - prev;
@@ -166,12 +203,14 @@ var CrawlerStatus = (function () {
     var base = 5 + Math.floor(this.stats.str * 1.5);
     var bonus = this.equippedWeapon ? this.equippedWeapon.damage : 0;
     var skillLvl = this.equippedWeapon ? this.skills.melee : this.skills.unarmed;
-    return base + bonus + skillLvl + Math.floor(Math.random() * 4);
+    var raw = base + bonus + skillLvl + Math.floor(Math.random() * 4);
+    return Math.round(raw * this.perk('meleeMult', 1)); // Fighter hits harder
   };
 
   CrawlerStatus.prototype.getSpellPower = function () {
     // INT drives missile damage; CHA gives Donut a small bonus
-    return 8 + Math.floor(this.stats.int * 2) + Math.floor(this.stats.cha / 3);
+    var raw = 8 + Math.floor(this.stats.int * 2) + Math.floor(this.stats.cha / 3);
+    return Math.round(raw * this.perk('spellDmgMult', 1)); // Mage spells hit harder
   };
 
   CrawlerStatus.prototype.addItem = function (item) {
@@ -414,6 +453,9 @@ var CrawlerStatus = (function () {
       skillXp:   Object.assign({}, this.skillXp),
       bossKilledFloor: this.bossKilledFloor || 0,
       hasGoblinPass:   this.hasGoblinPass   || false,
+      race:        this.race,
+      className:    this.className,
+      classChosen: this.classChosen || false,
     };
   };
 
@@ -447,6 +489,9 @@ var CrawlerStatus = (function () {
     s.skillXp = Object.assign({ unarmed: 0, melee: 0, endurance: 0, dodge: 0 }, data.skillXp || {});
     s.bossKilledFloor    = data.bossKilledFloor || 0;
     s.hasGoblinPass      = data.hasGoblinPass   || false;
+    s.race        = data.race      || null;
+    s.className    = data.className || null;
+    s.classChosen = data.classChosen || false;
     // Scroll buffs don't persist across save/load (they'd have expired anyway)
     s._swiftnessUntil   = 0;
     s._ironSkinDefense  = 0;
@@ -457,6 +502,25 @@ var CrawlerStatus = (function () {
       return idx != null ? s.inventory[idx] : null;
     });
     return s;
+  };
+
+  // ── Floor 3 selection pools ───────────────────────────────────────────────
+  // Race pools are unique per dungeon season (lore), so this set is invented but
+  // canon-safe. Each entry applies stat deltas; classes also grant distribution
+  // points spent in a safe room via the existing stat-point UI.
+  CrawlerStatus.RACES = {
+    human:       { name: 'Human',       desc: 'Adaptable. Mordecai-approved. No nasty surprises.',     stats: { con: 1, luck: 1 } },
+    crocodilian: { name: 'Crocodilian', desc: 'Armored hide, slow to anger, faster to bite.',          stats: { str: 2, con: 1, dex: -1 } },
+    sylph:       { name: 'Sylph',       desc: 'Winged and weightless. Quick and clever, but frail.',    stats: { dex: 2, int: 1, con: -1 } },
+    dvergr:      { name: 'Dvergr',      desc: 'Stone-blooded. Tough as a Waffle House counter.',        stats: { con: 2, str: 1, dex: -1 } },
+  };
+
+  CrawlerStatus.CLASSES = {
+    fighter: { name: "Boring Ol' Fighter", desc: 'Hits hard. +STR/CON, +18% melee damage.',       stats: { str: 2, con: 1 }, statPoints: 3, perk: { meleeMult: 1.18 } },
+    mage:    { name: 'Mage',               desc: 'Spells hit harder, cost less MP. +INT.',         stats: { int: 3 },         statPoints: 3, perk: { spellDmgMult: 1.25, spellMpMult: 0.6 } },
+    rogue:   { name: 'Rogue',              desc: 'Lethal crits. +DEX/LUCK, +12% crit chance.',     stats: { dex: 2, luck: 2 },statPoints: 3, perk: { critBonus: 0.12 } },
+    bard:    { name: 'Bard',               desc: 'Crowd favorite. +CHA, +80% follower gain.',      stats: { cha: 2, int: 1 }, statPoints: 3, recommended: true, perk: { followerMult: 1.8 } },
+    cleric:  { name: 'Cleric',             desc: 'Heal hard, live long. +CON/INT, +35% healing.',  stats: { con: 2, int: 1 }, statPoints: 3, perk: { healMult: 1.35 } },
   };
 
   return CrawlerStatus;

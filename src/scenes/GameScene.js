@@ -20,6 +20,7 @@ var BOSS_FLAVOR = {
     introDelayed: '"I WAS HERE FIRST," IT SCREAMS. "ALL OF THIS IS MINE."',
     phase2: 'THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.',
     phase2Delayed: '"MY MINIONS! PROTECT THE THINGS!" — THE HOARDER',
+    phase3: 'THE HOARDER IS DESPERATE. "NO! NO! NOT MY COLLECTION! I WILL BURY YOU IN IT!" — IT LASHES OUT WILDLY.',
     taunt: function (phase) { return MessageSystem.bossHoarderTaunt(phase); },
     dropPool: function (floor) { return [
       { type: 'weapon', name: "The Hoarder's Cleaver", damage: 15 + floor * 2, sprite: 'weapon' },
@@ -33,9 +34,11 @@ var BOSS_FLAVOR = {
     label: 'KRAKAREN CLONE',
     slamFn: '_bossKrakarenSlam', secondaryFn: '_bossKrakarenMist',
     intro: 'BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: KRAKAREN CLONE. BORANT NOTES: THIS IS NOT THE KRAKAREN. THIS IS A KRAKAREN. THERE ARE MORE.',
+    introDeep: 'BOSS BATTLE! ANOTHER KRAKAREN. YOU KILLED ONE — SO BORANT GREW TWO MORE. THIS ONE IS BIGGER, DEEPER, AND IT REMEMBERS THE LAST OF ITS MOUTHS YOU SILENCED.',
     introDelayed: 'DOZENS OF MOUTHS SCREAM FROM EVERY TENTACLE. THE SOUND IS SOLID. DONUT COVERS HER EARS.',
     phase2: 'KRAKAREN CLONE SEETHES. ADDITIONAL TENTACLES EMERGE FROM THE FLOOR. MOUTH-COUNT DOUBLES.',
     phase2Delayed: '"MORE. MORE. MORE." — EVERY MOUTH, SIMULTANEOUSLY.',
+    phase3: 'KRAKAREN CLONE CONVULSES. EVERY MOUTH SHRIEKS AT ONCE AND THE TENTACLES FLAIL FASTER THAN THEY CAN AIM.',
     taunt: function (phase) { return MessageSystem.bossKrakarenTaunt(phase); },
     dropPool: function (floor) { return [
       { type: 'weapon', name: "Krakaren's Severed Tentacle", damage: 18 + floor * 2, sprite: 'weapon' },
@@ -46,6 +49,27 @@ var BOSS_FLAVOR = {
   },
 };
 function _bossFlavor(type) { return BOSS_FLAVOR[type] || BOSS_FLAVOR.hoarder; }
+
+// Swarm / janitor mobs that shouldn't roll into Elites (harmless or self-replicating).
+var ELITE_EXCLUDE = { brindle_grub: 1, scatterer: 1 };
+
+// Souls a Rage Elemental must claim before it dissipates (lore: 666).
+var RAGE_SOUL_QUOTA = 666;
+
+// Per-floor presentation + economy config. Default = deep-floor (2+) behavior;
+// floor 1 is the exception. Adding a floor = add a tileset row (rest inherits).
+var FLOOR_DEFAULT = {
+  npc: 'bugaboo', bgColor: '#c8b898', tileset: 'tileset_f4',
+  denseDecor: true, social: true, gold: true, craftingDrops: false, tutorialFloor2: true,
+};
+var FLOOR_OVERRIDES = {
+  1: { npc: 'guildmaster', bgColor: '#0a0812', tileset: 'tileset',
+       denseDecor: false, social: false, gold: false, craftingDrops: true, tutorialFloor2: false },
+  2: { tileset: 'tileset_f2' },
+  3: { tileset: 'tileset_f3' },
+  4: { tileset: 'tileset_f4' },
+};
+function _floorConfig(n) { return Object.assign({}, FLOOR_DEFAULT, FLOOR_OVERRIDES[n] || {}); }
 
 var GameScene = new Phaser.Class({
   Extends: Phaser.Scene,
@@ -81,6 +105,7 @@ var GameScene = new Phaser.Class({
   create: function () {
     var MAP_W = 256, MAP_H = 256;
     this.MAP_W = MAP_W; this.MAP_H = MAP_H;
+    this._floorCfg = _floorConfig(this.currentFloor);
 
     // Reset any registry state that may persist across floor transitions
     this.registry.set('shopOpen', false);
@@ -134,7 +159,7 @@ var GameScene = new Phaser.Class({
     this._bossLoopEvent    = null;
     this._bossEnemy        = null;
 
-    var npcKey = this.currentFloor >= 2 ? 'bugaboo' : 'guildmaster';
+    var npcKey = this._floorCfg.npc;
     if (this._guildHall) {
       var ghCX = (this._guildHall.x + Math.floor(this._guildHall.w / 2)) * 32 + 16;
       var ghCY = (this._guildHall.y + Math.floor(this._guildHall.h / 2) - 1) * 32 + 16;
@@ -226,7 +251,7 @@ var GameScene = new Phaser.Class({
 
     // ── Mailboxes (Floor 2+ safe rooms) ─────────────────────────────────────
     this._mailboxes = [];
-    if (this.currentFloor >= 2) {
+    if (this._floorCfg.social) {
       for (var mbi = 0; mbi < this._safeRooms.length; mbi++) {
         var mbsr = this._safeRooms[mbi];
         // Place mailbox offset from Bopca — south-east corner of safe room
@@ -283,7 +308,7 @@ var GameScene = new Phaser.Class({
     // ── Camera ──────────────────────────────────────────────────────────────
     this.cameras.main.setBounds(0, 0, MAP_W * 32, MAP_H * 32);
     this.cameras.main.startFollow(this.carl.getSprite(), true, 0.1, 0.1);
-    this.cameras.main.setBackgroundColor(this.currentFloor >= 2 ? '#c8b898' : '#0a0812');
+    this.cameras.main.setBackgroundColor(this._floorCfg.bgColor);
 
     // ── Colliders ───────────────────────────────────────────────────────────
     var scene = this;
@@ -699,8 +724,8 @@ var GameScene = new Phaser.Class({
       this._taintWasActive = taintNow;
     }
 
-    // Passive follower decay on Floor 2+ — audience loses interest during idle stretches
-    if (this.currentFloor >= 2) {
+    // Passive follower decay once social is live — audience loses interest during idle stretches
+    if (this._floorCfg.social) {
       if (!this._followerDecayTick) this._followerDecayTick = nowMs;
       if (nowMs - this._followerDecayTick > 20000) {
         this._followerDecayTick = nowMs;
@@ -811,6 +836,14 @@ var GameScene = new Phaser.Class({
               this.cameras.main.shake(120, 0.01);
             }
             this._onCarlHurt(emdmg, e.typeName);
+            if (e.isElite && e._affix === 'vampiric') {
+              e.hp = Math.min(e.maxHp, e.hp + Math.max(1, Math.round(emdmg * 0.5)));
+              e._updateHpBar();
+              this._floatText(e.sprite.x, e.sprite.y - 14, '+' + Math.round(emdmg * 0.5), '#aa44ff', 10);
+            } else if (e.isElite && e._affix === 'venomous' && !this.status.hasDebuff(DEBUFF_POISON)) {
+              this.status.applyDebuff(DEBUFF_POISON, 6000, 2, 1500);
+              this._floatText(_carlX, _carlY - 30, 'ENVENOMED', '#88cc44', 11);
+            }
             if (e.onHitEffect) {
               var effect = e.onHitEffect(this.status);
               if (effect === DEBUFF_POISON) {
@@ -832,7 +865,7 @@ var GameScene = new Phaser.Class({
           e.speed = Math.round(e.speed * 1.5);
           e._slamCdMs = 2800;
           e._slamCd = nowMs;
-          e.sprite.setTint(0xff3300);
+          e._baseTint = 0xff3300; e.sprite.setTint(0xff3300);
           this.cameras.main.shake(400, 0.014);
           _playPhaseTransition();
           this._floatText(e.sprite.x, e.sprite.y - 24, 'PHASE 2!', '#ff4400', 14);
@@ -850,11 +883,24 @@ var GameScene = new Phaser.Class({
             );
           }
         }
+        // Phase 3 enrage — final 20% HP: attacks come much faster, deeper red.
+        if (e._phase === 2 && e.hp <= e.maxHp * 0.2) {
+          e._phase = 3;
+          e.speed = Math.round(e.speed * 1.25);
+          e._slamCdMs  = Math.round(e._slamCdMs  * 0.6);
+          e._throwCdMs = Math.round(e._throwCdMs * 0.6);
+          e._baseTint = 0xcc0000; e.sprite.setTint(0xcc0000);
+          this.cameras.main.shake(500, 0.02);
+          _playPhaseTransition();
+          this._floatText(e.sprite.x, e.sprite.y - 24, 'ENRAGE!', '#ff0000', 16);
+          var p3flavor = _bossFlavor(e._bossType);
+          if (p3flavor.phase3) this.messages.push(p3flavor.phase3);
+        }
         if (e._aggroed && nowMs >= e._slamCd) {
           e._slamCd = nowMs + e._slamCdMs;
           this[_bossFlavor(e._bossType).slamFn](e);
         }
-        if (e._phase === 2 && e._aggroed && nowMs >= e._throwCd) {
+        if (e._phase >= 2 && e._aggroed && nowMs >= e._throwCd) {
           e._throwCd = nowMs + e._throwCdMs;
           this[_bossFlavor(e._bossType).secondaryFn](e);
         }
@@ -988,7 +1034,7 @@ var GameScene = new Phaser.Class({
   _buildTilemap: function (tiles, mapW, mapH) {
     // Tile indices: 0=floor, 1=wall, 2=stairs, 3=door, 4=start, 5=safe_room
     // All match tileset strip positions directly
-    var tileKey = this.currentFloor >= 2 ? 'tileset_f2' : 'tileset';
+    var tileKey = this._floorCfg.tileset;
     var map = this.make.tilemap({ data: tiles, tileWidth: 32, tileHeight: 32 });
     var tileset = map.addTilesetImage(tileKey, tileKey, 32, 32, 0, 0);
     this.groundLayer = map.createLayer(0, tileset, 0, 0);
@@ -1000,8 +1046,8 @@ var GameScene = new Phaser.Class({
 
   _spawnFloorDecor: function (tiles, mapW, mapH) {
     var gr = this.add.graphics().setDepth(1); // just above ground layer (0)
-    var isF2 = this.currentFloor >= 2;
-    // Floor 2: denser cracks/rubble; Floor 1: standard 4%
+    var isF2 = this._floorCfg.denseDecor;
+    // Floor 2+: denser cracks/rubble; Floor 1: standard 4%
     var density = isF2 ? 0.10 : 0.04;
     for (var ty = 1; ty < mapH - 1; ty++) {
       for (var tx = 1; tx < mapW - 1; tx++) {
@@ -1063,20 +1109,22 @@ var GameScene = new Phaser.Class({
     var scene = this;
     var enemy = EnemyFactory.create(this, type, x, y, floorNum);
     this.physics.add.collider(enemy.sprite, this.wallLayer);
+    // Duck-typed wiring — present only on the subclasses that need it, so no
+    // instanceof / no GameScene dependency on the subclass constructors.
     if (enemy.setMissileGroup) enemy.setMissileGroup(this.enemyMissiles);
-    if (enemy instanceof EnemyFactory.RotStickerEnemy) {
+    if (enemy.setKnockdownCallback) {
       enemy.setKnockdownCallback(function (dmg) { scene._applyRotStickerBlast(dmg); });
     }
-    if (enemy instanceof EnemyFactory.DangerDingoEnemy) {
+    if (enemy.onBark) {
       enemy.onBark(function (msg) { scene.messages.push(msg); });
     }
-    if (enemy instanceof EnemyFactory.BrindleGrubEnemy) {
+    if (enemy.setPupaCallback) {
       enemy.setPupaCallback(function (px, py) {
         scene.messages.push('A BRINDLE GRUB PUPA HATCHES. A BRINDLED VESPA EMERGES. DONUT SUGGESTS RUNNING.');
         scene._spawnSingleEnemy('brindled_vespa', px, py, scene.currentFloor);
       });
     }
-    if (enemy instanceof EnemyFactory.MindHorrorEnemy) {
+    if (enemy.setPsionicCallback) {
       enemy.setPsionicCallback(function (dmg) {
         if (scene.isInSafeRoom()) return;
         var actual = scene.carl.receiveHit(dmg, 'Mind Horror');
@@ -1126,7 +1174,9 @@ var GameScene = new Phaser.Class({
           var tileVal = tiles[ty] && tiles[ty][tx];
           if (tileVal === DungeonGenerator.FLOOR || tileVal === DungeonGenerator.START) {
             var type = types[Math.floor(Math.random() * types.length)];
-            scene._spawnSingleEnemy(type, tx * 32 + 16, ty * 32 + 16, floorNum);
+            var en = scene._spawnSingleEnemy(type, tx * 32 + 16, ty * 32 + 16, floorNum);
+            // ~8% of floor mobs spawn as Elites (skip swarm/janitor types).
+            if (en && !ELITE_EXCLUDE[type] && Math.random() < 0.08) en.makeElite();
             placed = true;
           }
         }
@@ -1697,7 +1747,7 @@ var GameScene = new Phaser.Class({
     var lvlUp = this.status.addXP(enemy.xpValue);
     this.status.addViews(Math.floor(enemy.xpValue * 20));
     // Followers grow on kills too — slower rate; Floor 2+ social system active
-    if (this.currentFloor >= 2) {
+    if (this._floorCfg.social) {
       this.status.addFollowers(Math.floor(enemy.xpValue * 0.4));
       this._lastKillTime = Date.now();
     }
@@ -1720,17 +1770,41 @@ var GameScene = new Phaser.Class({
     } else if (Math.random() < 0.12) {
       corpseItems.push({ type: 'potion', name: 'Health Potion' });
     }
-    if (scene.currentFloor === 1 && Math.random() < 0.35) {
+    if (scene._floorCfg.craftingDrops && Math.random() < 0.35) {
       var mat = scene._craftingDropForEnemy(enemy.typeName);
       if (mat) corpseItems.push(mat);
     }
-    if (scene.currentFloor >= 2) {
+    if (scene._floorCfg.gold) {
       var goldDef = scene._enemyGold[enemy.typeName] || { base: 2 };
       var goldAmt = goldDef.base + Math.floor(Math.random() * 8) + Math.floor(enemy.xpValue / 5);
       corpseItems.push({ type: 'gold', name: goldAmt + ' Gold Coins', amount: goldAmt });
       if (goldDef.bonus) {
         for (var bi = 0; bi < goldDef.bonus.count; bi++) {
           corpseItems.push({ type: goldDef.bonus.type, name: goldDef.bonus.name, quality: goldDef.bonus.quality });
+        }
+      }
+    }
+
+    // Elite bonus: guaranteed crafting mat + a chance at a Silver box for the pack.
+    if (enemy.isElite) {
+      var em = scene._randomCraftingDrop();
+      if (em) corpseItems.push(em);
+      if (Math.random() < 0.25) {
+        scene._claimedBoxes.push({ tier: 'silver', _contents: scene._lootTableForTier('silver') });
+        scene.messages.push('ELITE SLAIN. A SILVER LOOT BOX DROPS INTO YOUR PACK — OPENS IN A SAFE ROOM.');
+      }
+      // Explosive affix: purple blast on death, hurts Carl if he's close.
+      if (enemy._affix === 'explosive') {
+        var bx = enemy.sprite.x, by = enemy.sprite.y;
+        var blast = scene.add.graphics().setDepth(20);
+        blast.fillStyle(0x9b30ff, 0.6); blast.fillCircle(bx, by, 60);
+        scene.tweens.add({ targets: blast, alpha: 0, scaleX: 2, scaleY: 2, duration: 350,
+          onComplete: function () { blast.destroy(); } });
+        scene.cameras.main.shake(220, 0.013);
+        var bdx = scene.carl.x() - bx, bdy = scene.carl.y() - by;
+        if (bdx * bdx + bdy * bdy < 70 * 70) {
+          var bd = scene.carl.receiveHit(Math.round(enemy.damage * 1.2), 'Elite blast');
+          if (bd > 0) { scene._lastKiller = 'Elite blast'; scene._onCarlHurt(bd, 'Elite blast'); }
         }
       }
     }
@@ -1743,7 +1817,7 @@ var GameScene = new Phaser.Class({
       scene._spawnFairyDustCloud(enemy.sprite.x, enemy.sprite.y);
     }
 
-    this.messages.push(MessageSystem.kill(enemy.typeName, enemy.xpValue));
+    this.messages.push(MessageSystem.kill(enemy.displayName(), enemy.xpValue));
     // Donut reacts to kills ~25% of the time
     if (Math.random() < 0.25) this.messages.push(MessageSystem.donutReaction('kill'));
     if (lvlUp) lvlUp.forEach(function (lu) { scene._onLevelUp(lu); });
@@ -1806,7 +1880,7 @@ var GameScene = new Phaser.Class({
     var cx = enemy.sprite.x, cy = enemy.sprite.y;
     var spr = scene.add.image(cx, cy, enemy.sprite.texture.key)
       .setDepth(4).setAlpha(0.55).setTint(0x441111).setAngle(90);
-    var corpse = { sprite: spr, typeName: enemy.typeName, items: items, _looted: false };
+    var corpse = { sprite: spr, typeName: enemy.displayName(), items: items, _looted: false };
     scene.corpses.push(corpse);
     // Auto-despawn after 15s — fade then destroy
     scene.time.delayedCall(13000, function () {
@@ -2401,7 +2475,12 @@ var GameScene = new Phaser.Class({
     cam.fadeOut(700, 0, 0, 0);
     this.time.delayedCall(750, function () {
       scene.scene.stop('UIScene');
-      scene.scene.restart({ floor: nextFloor });
+      // Floor 3 entry: race + class selection in the production trailer, once.
+      if (nextFloor === 3 && !scene.status.classChosen) {
+        scene.scene.start('ClassSelectScene', { floor: nextFloor });
+      } else {
+        scene.scene.restart({ floor: nextFloor });
+      }
     });
   },
 
@@ -2421,7 +2500,9 @@ var GameScene = new Phaser.Class({
     this.cameras.main.shake(500, 0.018);
     var scene = this;
     var flavor = _bossFlavor(this._bossEnemy ? this._bossEnemy._bossType : 'hoarder');
-    this.messages.push(flavor.intro);
+    var b = this._bossEnemy;
+    var isRepeat = b && b._bossNativeFloor != null && this.currentFloor > b._bossNativeFloor;
+    this.messages.push(isRepeat && flavor.introDeep ? flavor.introDeep : flavor.intro);
     this.time.delayedCall(1200, function () { scene.messages.push(flavor.introDelayed); });
     this.time.delayedCall(2400, function () {
       scene.messages.push(MessageSystem.donutReaction('many_enemies'));
@@ -2803,7 +2884,7 @@ var GameScene = new Phaser.Class({
     this._rageElemental = elem;
     this._rageMobKills  = 0;
 
-    this.messages.push('A RAGE ELEMENTAL HAS MANIFESTED. IT WILL CLAIM 666 SOULS. GRUBS DO NOT COUNT. FIND A BATHROOM.');
+    this.messages.push('A RAGE ELEMENTAL HAS MANIFESTED. IT WILL CLAIM ' + RAGE_SOUL_QUOTA + ' SOULS. GRUBS DO NOT COUNT. FIND A BATHROOM.');
     this.cameras.main.shake(600, 0.022);
   },
 
@@ -2822,8 +2903,8 @@ var GameScene = new Phaser.Class({
         mob.takeDamage(9999);
         if (mob.isDead()) {
           scene._rageMobKills++;
-          scene._floatText(ex, ey - 28, (666 - scene._rageMobKills) + ' SOULS REMAIN', '#cc44ff', 10);
-          if (scene._rageMobKills >= 666) elem.takeDamage(999999);
+          scene._floatText(ex, ey - 28, (RAGE_SOUL_QUOTA - scene._rageMobKills) + ' SOULS REMAIN', '#cc44ff', 10);
+          if (scene._rageMobKills >= RAGE_SOUL_QUOTA) elem.takeDamage(999999);
         }
       }
     }
@@ -2834,7 +2915,7 @@ var GameScene = new Phaser.Class({
     this._tutorialRunning = true;
     var scene = this;
     var STEP_MS = 3800;  // time between each dialog line
-    var stepFn = scene.currentFloor >= 2 ? MessageSystem.tutorialStepFloor2 : MessageSystem.tutorialStep;
+    var stepFn = scene._floorCfg.tutorialFloor2 ? MessageSystem.tutorialStepFloor2 : MessageSystem.tutorialStep;
 
     // Fire steps 0-7 (dialog lines)
     for (var i = 0; i < 8; i++) {

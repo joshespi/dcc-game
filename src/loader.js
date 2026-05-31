@@ -1,4 +1,4 @@
-var GAME_VERSION = '0.2.4+20260531-01';
+var GAME_VERSION = '0.3.0+20260531-01';
 [
   'src/sprites.js',
   'src/systems/Audio.js',
@@ -12,6 +12,7 @@ var GAME_VERSION = '0.2.4+20260531-01';
   'src/scenes/BootScene.js',
   'src/scenes/IntroScene.js',
   'src/scenes/CutsceneScene.js',
+  'src/scenes/ClassSelectScene.js',
   'src/scenes/GameScene.js',
   'src/scenes/UIScene.js',
   'src/scenes/DeathScene.js',

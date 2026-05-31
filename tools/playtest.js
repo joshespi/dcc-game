@@ -148,6 +148,39 @@ async function main() {
   console.log('  floor:', sF2 && sF2.floor);
   await shot('12-floor2');
 
+  // ── Floor 2 → 3: kill boss, descend into race/class selection ───────────────
+  console.log('→ floor 2 boss + descend');
+  await dccCall('teleportTo', 'boss'); await wait(1200);
+  await dccCall('killBoss');           await wait(1500);
+  await dccCall('teleportTo', 'stairs'); await wait(800);
+  await tap('Escape'); await wait(300);
+  await tap('KeyE');   await wait(2600); // descend → ClassSelectScene
+  const csActive = await page.evaluate(() =>
+    window.game.scene.getScene('ClassSelectScene') &&
+    window.game.scene.getScene('ClassSelectScene').scene.isActive());
+  console.log('  class select active:', csActive);
+  await shot('13-class-select');
+
+  console.log('→ pick Dvergr + Fighter');
+  await page.evaluate(() =>
+    window.game.scene.getScene('ClassSelectScene').selectAndDescend('dvergr', 'fighter'));
+  await wait(2600);
+  await waitForDcc();
+  const sF3 = await page.evaluate(() => {
+    const st = window.game.scene.getScene('GameScene').status;
+    return { floor: st.floor, classChosen: st.classChosen, race: st.race,
+             className: st.className, str: st.stats.str, statPoints: st.statPoints };
+  });
+  console.log('  floor 3 state:', JSON.stringify(sF3));
+  await shot('14-floor3');
+
+  console.log('→ floor 3 boss kill');
+  await dccCall('teleportTo', 'boss'); await wait(1200);
+  await dccCall('killBoss');           await wait(1500);
+  const sF3b = await dccState();
+  console.log('  stairsUnlocked:', sF3b && sF3b.stairsUnlocked);
+  await shot('15-floor3-boss-dead');
+
   console.log('\n=== Errors ===');
   if (errors.length === 0) console.log('  (none)');
   else errors.forEach((e) => console.log('  ' + e));

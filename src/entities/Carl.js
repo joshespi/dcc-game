@@ -134,8 +134,8 @@ var Carl = (function () {
 
     // Kick does 1.3x damage; punch is 1x but faster (same ATTACK_CD for now)
     var dmg = Math.floor(this.status.getMeleeDamage() * (isPunch ? 1.0 : 1.3));
-    // LUCK: each point = 2% crit chance, crit doubles damage
-    var critChance = this.status.stats.luck * 0.02;
+    // LUCK: each point = 2% crit chance, crit doubles damage. Rogue adds a flat bonus.
+    var critChance = this.status.stats.luck * 0.02 + this.status.perk('critBonus', 0);
     var isCrit = Math.random() < critChance;
     if (isCrit) dmg = dmg * 2;
     if (this._onAttack) this._onAttack(this._swingBox, dmg, this._attackType, isCrit);

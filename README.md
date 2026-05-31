@@ -19,7 +19,6 @@ Open [http://localhost:8090](http://localhost:8090) in your browser.
 
 > Phaser loads scripts via XHR — `file://` won't work, a local HTTP server is required.
 
-
 ## Controls
 
 | Key | Action |
@@ -38,7 +37,7 @@ Open [http://localhost:8090](http://localhost:8090) in your browser.
 
 E priority when multiple prompts overlap: stairs → loot box → corpse → merchant → potion.
 
-## Current state: Floors 1–2
+## Current state: Floors 1–4
 
 ### Floor 1 enemies
 
@@ -60,6 +59,18 @@ E priority when multiple prompts overlap: stairs → loot box → corpse → mer
 | Brindle Grub | Harmless worm — but eats nearby corpses and splits on kill. |
 | Goblin / Rat / Fairy | Carry over from Floor 1 with stat scaling. |
 
+### Floor 3 induction — race & class
+
+Descending from Floor 2 opens the **production trailer**: pick a race, then a class.
+Both apply permanent stat changes, and your class grants stat points to spend in any
+safe room (press **I**). Chosen once per crawler.
+
+- **Races:** Human (balanced), Crocodilian (+STR/CON, −DEX), Sylph (+DEX/INT, −CON), Dvergr (+CON/STR, −DEX). The pool is themed per season.
+- **Classes:** each has a stat profile **and a signature perk** — Boring Ol' Fighter (+18% melee), Mage (+25% spell power, spells cost ~half MP), Rogue (+12% crit), Bard (+80% follower gain, recommended), Cleric (+35% healing).
+
+**The Over City (Floor 3):** its own steel-and-glass-tower visual theme, a tougher urban mob mix (skeletons, danger dingoes, kobold riders, clurichauns, mind horrors), and a fresh Krakaren as the neighborhood boss — lore-consistent, since killing one only makes more.
+
+**The Iron Tangle (Floor 4):** rusted-iron industrial theme and the roster's toughest mob mix (bad llamas, trog virtuosos, laminak elites, mind horrors). Boss currently reuses the Krakaren with a deeper-floor intro.
 
 ## Items & loot
 

@@ -238,6 +238,91 @@ var SpriteGen = (function () {
     return c;
   }
 
+  function tileFloorF3() {
+    // Floor 3 (The Over City): grey asphalt street with paving seams
+    var c = canvas(T, T), ctx = ctx2d(c);
+    ctx.fillStyle = '#484c52'; ctx.fillRect(0, 0, T, T);
+    ctx.fillStyle = '#50555c';
+    ctx.fillRect(1, 1, 13, 13); ctx.fillRect(17, 1, 13, 13);
+    ctx.fillRect(1, 17, 13, 13); ctx.fillRect(17, 17, 13, 13);
+    // Seams between slabs
+    ctx.fillStyle = '#34373c'; ctx.fillRect(0, 15, T, 2); ctx.fillRect(15, 0, 2, T);
+    // Grime specks
+    ctx.fillStyle = '#3e4248';
+    ctx.fillRect(5, 6, 3, 2); ctx.fillRect(23, 9, 2, 3); ctx.fillRect(9, 23, 3, 2); ctx.fillRect(24, 24, 2, 2);
+    // Faint road paint
+    ctx.fillStyle = '#8a7836'; ctx.fillRect(14, 4, 4, 1); ctx.fillRect(14, 25, 4, 1);
+    return c;
+  }
+
+  function tileWallF3() {
+    // Floor 3 (The Over City): steel-and-glass tower face with lit windows
+    var c = canvas(T, T), ctx = ctx2d(c);
+    ctx.fillStyle = '#2b3340'; ctx.fillRect(0, 0, T, T);
+    // Muted glass panes (2×2)
+    ctx.fillStyle = '#4a6076'; ctx.fillRect(3, 3, 11, 11);
+    ctx.fillStyle = '#42566a'; ctx.fillRect(18, 3, 11, 11);
+    ctx.fillStyle = '#42566a'; ctx.fillRect(3, 18, 11, 11);
+    ctx.fillStyle = '#4a6076'; ctx.fillRect(18, 18, 11, 11);
+    // A couple of lit windows (one cool, one warm) for city-at-night feel
+    ctx.fillStyle = '#bcd4f0'; ctx.fillRect(4, 4, 5, 5);
+    ctx.fillStyle = '#e8cc7a'; ctx.fillRect(19, 19, 5, 5);
+    // Steel frame
+    ctx.fillStyle = '#1e2530';
+    ctx.fillRect(0, 0, 2, T); ctx.fillRect(15, 0, 2, T); ctx.fillRect(30, 0, 2, T);
+    ctx.fillRect(0, 0, T, 2); ctx.fillRect(0, 15, T, 2); ctx.fillRect(0, 30, T, 2);
+    return c;
+  }
+
+  function genTilesetFloor3() {
+    var tiles = [tileFloorF3(), tileWallF3(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
+    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
+    tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
+    return c;
+  }
+
+  function tileFloorF4() {
+    // Floor 4 (The Iron Tangle): riveted rusted metal plating
+    var c = canvas(T, T), ctx = ctx2d(c);
+    ctx.fillStyle = '#5a4632'; ctx.fillRect(0, 0, T, T);
+    ctx.fillStyle = '#64503a';
+    ctx.fillRect(1, 1, 29, 13); ctx.fillRect(1, 17, 29, 13);
+    // Plate seams
+    ctx.fillStyle = '#2e2316'; ctx.fillRect(0, 14, T, 2); ctx.fillRect(0, 30, T, 2); ctx.fillRect(15, 0, 2, T);
+    // Corner rivets
+    ctx.fillStyle = '#8a7050';
+    [[3,3],[27,3],[3,11],[27,11],[3,19],[27,19],[3,27],[27,27]].forEach(function (p) { ctx.fillRect(p[0], p[1], 2, 2); });
+    // Rust streaks
+    ctx.fillStyle = '#7a3a1a';
+    ctx.fillRect(8, 5, 5, 1); ctx.fillRect(20, 21, 5, 1); ctx.fillRect(11, 24, 3, 2);
+    return c;
+  }
+
+  function tileWallF4() {
+    // Floor 4 (The Iron Tangle): corroded iron girders
+    var c = canvas(T, T), ctx = ctx2d(c);
+    ctx.fillStyle = '#322a20'; ctx.fillRect(0, 0, T, T);
+    // Vertical girders
+    ctx.fillStyle = '#5a4a36'; ctx.fillRect(2, 0, 9, T); ctx.fillRect(21, 0, 9, T);
+    // Horizontal cross-beam
+    ctx.fillStyle = '#4a3c2a'; ctx.fillRect(0, 12, T, 8);
+    // Rust patches
+    ctx.fillStyle = '#7a3e1c'; ctx.fillRect(4, 4, 4, 5); ctx.fillRect(23, 18, 4, 6); ctx.fillRect(5, 24, 3, 4);
+    // Rivets
+    ctx.fillStyle = '#8a7452';
+    [[4,2],[8,2],[23,2],[27,2],[4,28],[8,28],[23,28],[27,28]].forEach(function (p) { ctx.fillRect(p[0], p[1], 2, 2); });
+    // Dark structural gaps
+    ctx.fillStyle = '#1a140c'; ctx.fillRect(0, 0, 2, T); ctx.fillRect(11, 0, 2, T); ctx.fillRect(30, 0, 2, T);
+    return c;
+  }
+
+  function genTilesetFloor4() {
+    var tiles = [tileFloorF4(), tileWallF4(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
+    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
+    tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
+    return c;
+  }
+
   // ── CARL ──────────────────────────────────────────────────────────────────
   // Reference: leather jacket, light-blue heart boxer shorts, bare feet, dark messy hair
   // Sprite size: 48×48 for readability
@@ -2031,6 +2116,8 @@ var SpriteGen = (function () {
   function init(scene) {
     scene.textures.addCanvas('tileset',        genTileset());
     scene.textures.addCanvas('tileset_f2',     genTilesetFloor2());
+    scene.textures.addCanvas('tileset_f3',     genTilesetFloor3());
+    scene.textures.addCanvas('tileset_f4',     genTilesetFloor4());
     scene.textures.addCanvas('carl_down',      genCarl('down'));
     scene.textures.addCanvas('carl_up',        genCarl('up'));
     scene.textures.addCanvas('carl_right',     genCarl('right'));

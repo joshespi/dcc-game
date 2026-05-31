@@ -636,7 +636,7 @@ var UIScene = new Phaser.Class({
 
     // Stats text (left column) — rebuilt each refresh
     this._invStatsText = this.add.text(px + 10, py + HDR_H + 6, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ccbbff', lineSpacing: 4,
+      fontFamily: 'monospace', fontSize: '11px', color: '#ccbbff', lineSpacing: 2,
     }).setOrigin(0, 0);
     this._invPanel.add(this._invStatsText);
 
@@ -983,6 +983,9 @@ var UIScene = new Phaser.Class({
       '',
       'NAME   ' + status.crawlerName,
       '       #' + status.crawlerNumber,
+      'CLASS  ' + (status.classChosen
+        ? CrawlerStatus.RACES[status.race].name + ' ' + CrawlerStatus.CLASSES[status.className].name
+        : '— (Floor 3)'),
       'LEVEL  ' + status.level,
       'FLOOR  ' + status.floor,
       'KILLS  ' + status.kills,
@@ -1005,13 +1008,11 @@ var UIScene = new Phaser.Class({
     });
     statLines.push('');
     statLines.push('─ HP / MP / XP ─');
-    statLines.push('');
     statLines.push('HP  ' + status.hp + '/' + status.maxHp);
     statLines.push('MP  ' + status.mp + '/' + status.maxMp);
     statLines.push('XP  ' + status.xp + '/' + status.xpToNext);
     statLines.push('');
     statLines.push('─ DONUT ─');
-    statLines.push('');
     statLines.push('CLASS  Child Actor');
     statLines.push('SPELL  Magic Missile [Q]');
     statLines.push('PASS   Healing Purr');

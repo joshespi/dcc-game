@@ -45,7 +45,7 @@ var Donut = (function () {
   Donut.prototype.activateSpell = function (carlX, carlY, facing) {
     var now = Date.now();
     if (now - this._spellTimer < SPELL_CD) return false;
-    if (!this.status.spendMp(MISSILE_MP_COST)) return 'no_mp';
+    if (!this.status.spendMp(Math.max(1, Math.round(MISSILE_MP_COST * this.status.perk('spellMpMult', 1))))) return 'no_mp';
     this._spellTimer = now;
 
     this._castMagicMissile(carlX, carlY, facing);
@@ -73,7 +73,7 @@ var Donut = (function () {
   Donut.prototype.activateHealSurge = function () {
     var now = Date.now();
     if (now - this._surgeTimer < SURGE_CD) return false;
-    if (!this.status.spendMp(SURGE_MP_COST)) return 'no_mp';
+    if (!this.status.spendMp(Math.max(1, Math.round(SURGE_MP_COST * this.status.perk('spellMpMult', 1))))) return 'no_mp';
     this._surgeTimer = now;
 
     var healAmt = Math.floor(this.status.maxHp * 0.20);  // lore: heals ~20% max HP
