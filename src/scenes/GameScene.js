@@ -15,7 +15,7 @@ function _tierColor(t) { return (BOX_TIERS[t] || BOX_TIERS.bronze).color; }
 var BOSS_FLAVOR = {
   hoarder: {
     label: 'THE HOARDER',
-    slamFn: '_bossGroundSlam', secondaryFn: '_bossThrowJunk',
+    slamFn: '_bossGroundSlam', secondaryFn: '_bossVomitScatterers',
     intro: 'BOSS BATTLE! THE DOOR SEALS BEHIND YOU. NEIGHBORHOOD BOSS: THE HOARDER. BORANT CORPORATION THANKS YOU FOR YOUR SACRIFICE.',
     introDelayed: '"I WAS HERE FIRST," IT SCREAMS. "ALL OF THIS IS MINE."',
     phase2: 'THE HOARDER ENTERS A RAGE. "YOU CANNOT HAVE MY THINGS!" IT ACCELERATES.',
@@ -196,6 +196,7 @@ var GameScene = new Phaser.Class({
       bossEnemy.onDeath(function (dead) { scene._onBossDeath(dead); });
       bossEnemy._throwCd    = 0;
       bossEnemy._throwCdMs  = 2400;
+      bossEnemy.enableBossBar(_bossFlavor(bossEnemy._bossType).label);
       this.enemies.push(bossEnemy);
       this._bossEnemy = bossEnemy;
     } else if (bossAlreadyKilled && this._bossRoom) {
@@ -2413,6 +2414,17 @@ var GameScene = new Phaser.Class({
     var scene = this;
     // Stop taunt timer
     if (this._bossLoopEvent) { this._bossLoopEvent.remove(false); this._bossLoopEvent = null; }
+    // Lore: all minions die when boss dies. Boss room is sealed during the fight,
+    // so every spawned minion is still inside its bounds.
+    if (this._bossRoom) {
+      for (var mi = 0; mi < this.enemies.length; mi++) {
+        var mob = this.enemies[mi];
+        if (!mob.isDead() && !mob.isBoss &&
+            this._isInsideRoom(mob.sprite.x, mob.sprite.y, this._bossRoom)) {
+          mob.takeDamage(999999);
+        }
+      }
+    }
     // Unseal door + unlock stairs
     if (this._bossRoom) {
       this.wallLayer.putTileAt(DungeonGenerator.FLOOR, this._bossRoom.doorX, this._bossRoom.doorY);
@@ -2559,6 +2571,21 @@ var GameScene = new Phaser.Class({
       });
 
       scene.time.delayedCall(1500, function () { if (junk.active) junk.destroy(); });
+    });
+  },
+
+  _bossVomitScatterers: function (boss) {
+    var scene = this;
+    var bx = boss.sprite.x, by = boss.sprite.y;
+    var count = boss._phase === 2 ? 3 : 2;
+    scene._floatText(bx, by - 28, 'VOMIT!', '#cc8833', 13);
+    scene.cameras.main.shake(120, 0.006);
+    scene.time.delayedCall(350, function () {
+      if (boss.isDead()) return;
+      for (var i = 0; i < count; i++) {
+        var ang = (i / count) * Math.PI * 2;
+        scene._spawnSingleEnemy('scatterer', bx + Math.cos(ang) * 28, by + Math.sin(ang) * 28, scene.currentFloor);
+      }
     });
   },
 

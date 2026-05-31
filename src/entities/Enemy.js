@@ -45,11 +45,12 @@ var EnemyFactory = (function () {
     this._wanderVy       = 0;
     this._everHit        = false;
     this._hpPctLast      = -1;
+    this._barW = 28; this._barH = 4; this._barYOff = 18;
+    this._hpBarLabel = null;
 
     // HP bar — hidden until first hit
-    var BAR_W = 28, BAR_H = 4;
-    this._hpBarBg   = scene.add.rectangle(x, y - 18, BAR_W, BAR_H, 0x330000).setDepth(11).setVisible(false);
-    this._hpBarFill = scene.add.rectangle(x, y - 18, BAR_W, BAR_H, 0xcc2222).setDepth(12).setVisible(false).setOrigin(0, 0.5);
+    this._hpBarBg   = scene.add.rectangle(x, y - this._barYOff, this._barW, this._barH, 0x330000).setDepth(11).setVisible(false);
+    this._hpBarFill = scene.add.rectangle(x, y - this._barYOff, this._barW, this._barH, 0xcc2222).setDepth(12).setVisible(false).setOrigin(0, 0.5);
   }
 
   Enemy.prototype.onDeath = function (fn) { this._onDeath = fn; };
@@ -139,17 +140,30 @@ var EnemyFactory = (function () {
   };
 
   Enemy.prototype._updateHpBar = function () {
-    var BAR_W = 28;
+    var BAR_W = this._barW;
     var pct = Math.max(0, this.hp / this.maxHp);
-    var sx = this.sprite.x, sy = this.sprite.y - 18;
+    var sx = this.sprite.x, sy = this.sprite.y - this._barYOff;
     this._hpBarBg.setPosition(sx, sy);
     this._hpBarFill.setPosition(sx - BAR_W / 2, sy);
+    if (this._hpBarLabel) this._hpBarLabel.setPosition(sx, sy - 10);
     if (pct !== this._hpPctLast) {
-      this._hpBarFill.setDisplaySize(Math.max(1, BAR_W * pct), 4);
+      this._hpBarFill.setDisplaySize(Math.max(1, BAR_W * pct), this._barH);
       var color = pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xccaa00 : 0xcc2222;
       this._hpBarFill.setFillStyle(color);
       this._hpPctLast = pct;
     }
+  };
+
+  // Boss variant: bigger always-visible bar with a name label above it.
+  Enemy.prototype.enableBossBar = function (label) {
+    this._barW = 68; this._barH = 6; this._barYOff = 30;
+    this._everHit = true;
+    this._hpBarBg.setDisplaySize(this._barW, this._barH).setVisible(true);
+    this._hpBarFill.setVisible(true);
+    this._hpBarLabel = this.scene.add.text(this.sprite.x, this.sprite.y - this._barYOff - 10, label, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#ffbbbb', stroke: '#000000', strokeThickness: 2,
+    }).setDepth(13).setOrigin(0.5);
+    this._updateHpBar();
   };
 
   Enemy.prototype._die = function () {
@@ -158,6 +172,7 @@ var EnemyFactory = (function () {
     _playDeathSound();
     this._hpBarBg.destroy();
     this._hpBarFill.destroy();
+    if (this._hpBarLabel) this._hpBarLabel.destroy();
     // Fade out
     var spr = this.sprite;
     var scene = this.scene;
