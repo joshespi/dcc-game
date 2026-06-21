@@ -71,6 +71,13 @@ var FLOOR_OVERRIDES = {
 };
 function _floorConfig(n) { return Object.assign({}, FLOOR_DEFAULT, FLOOR_OVERRIDES[n] || {}); }
 
+// Borant Corp flavor announced ~2.8s after hitting these levels.
+var LEVEL_MILESTONES = {
+  3:  'BORANT CORPORATION: LEVEL 3 MILESTONE. VIEWER RETENTION UP 18%. THE AUDIENCE IS WARMING TO YOU.',
+  5:  'BORANT CORPORATION: LEVEL 5 MILESTONE. YOU ARE NOW STATISTICALLY UNLIKELY TO DIE IN THE NEXT FOUR MINUTES. ENJOY IT.',
+  10: 'BORANT CORPORATION: LEVEL 10. ANOMALOUS SURVIVAL DETECTED. LEGAL HAS BEEN NOTIFIED.',
+};
+
 var GameScene = new Phaser.Class({
   Extends: Phaser.Scene,
   initialize: function () { Phaser.Scene.call(this, { key: 'GameScene' }); },
@@ -1965,18 +1972,9 @@ var GameScene = new Phaser.Class({
     this.time.delayedCall(1200, function () {
       scene.messages.push(MessageSystem.donutReaction('level_up'));
     });
-    if (info.level === 3) {
-      this.time.delayedCall(2800, function () {
-        scene.messages.push('BORANT CORPORATION: LEVEL 3 MILESTONE. VIEWER RETENTION UP 18%. THE AUDIENCE IS WARMING TO YOU.');
-      });
-    } else if (info.level === 5) {
-      this.time.delayedCall(2800, function () {
-        scene.messages.push('BORANT CORPORATION: LEVEL 5 MILESTONE. YOU ARE NOW STATISTICALLY UNLIKELY TO DIE IN THE NEXT FOUR MINUTES. ENJOY IT.');
-      });
-    } else if (info.level === 10) {
-      this.time.delayedCall(2800, function () {
-        scene.messages.push('BORANT CORPORATION: LEVEL 10. ANOMALOUS SURVIVAL DETECTED. LEGAL HAS BEEN NOTIFIED.');
-      });
+    var milestone = LEVEL_MILESTONES[info.level];
+    if (milestone) {
+      this.time.delayedCall(2800, function () { scene.messages.push(milestone); });
     }
   },
 
@@ -2194,6 +2192,13 @@ var GameScene = new Phaser.Class({
     if (changed) this.registry.set('fogDirty', true);
   },
 
+  // Show the proximity prompt; skip the (costly) text re-layout when the label
+  // is unchanged frame-to-frame, which is the common case while standing still.
+  _showPrompt: function (p, text, x, y) {
+    if (text !== this._promptLastLabel) { p.setText(text); this._promptLastLabel = text; }
+    p.setPosition(x, y).setAlpha(1);
+  },
+
   _updateProximityPrompt: function () {
     var cx = this.carl.x(), cy = this.carl.y();
     var INTERACT_R2 = 2304; // 48px radius
@@ -2251,27 +2256,25 @@ var GameScene = new Phaser.Class({
           ? '[E] collect (' + packedCount + ' in pack)'
           : '[E] collect for safe room';
       }
-      p.setText(label).setPosition(nearest.x, nearest.y - 28).setAlpha(1);
+      this._showPrompt(p, label, nearest.x, nearest.y - 28);
     } else if (inSafe && packedCount > 0) {
       var packLabel = '[E] open ' + packedCount + ' box' + (packedCount > 1 ? 'es' : '') + ' from pack';
-      p.setText(packLabel).setPosition(cx, cy - 36).setAlpha(1);
+      this._showPrompt(p, packLabel, cx, cy - 36);
     } else if (this._nearestCorpse) {
       var corp = this._nearestCorpse;
       var lootCount = corp.items.length;
       var corpLabel = lootCount > 0
         ? '[E] loot ' + corp.typeName + ' (' + lootCount + ' item' + (lootCount > 1 ? 's' : '') + ')'
         : '[E] loot ' + corp.typeName;
-      p.setText(corpLabel).setPosition(corp.sprite.x, corp.sprite.y - 28).setAlpha(1);
+      this._showPrompt(p, corpLabel, corp.sprite.x, corp.sprite.y - 28);
     } else if (this._nearBopca) {
-      p.setText('[E] shop  (' + this.status.gold + 'g)')
-        .setPosition(this._nearBopca.x, this._nearBopca.y - 26).setAlpha(1);
+      this._showPrompt(p, '[E] shop  (' + this.status.gold + 'g)', this._nearBopca.x, this._nearBopca.y - 26);
     } else if (this._nearMailbox) {
-      p.setText('[E] check mail')
-        .setPosition(this._nearMailbox.x, this._nearMailbox.y - 28).setAlpha(1);
+      this._showPrompt(p, '[E] check mail', this._nearMailbox.x, this._nearMailbox.y - 28);
     } else if (nearStairs) {
       var stLabel = this._stairsUnlocked ? '[E] descend' : '[E] stairs  (sealed)';
       var stX = st.x * 32 + 16, stY = st.y * 32 + 16;
-      p.setText(stLabel).setPosition(stX, stY - 28).setAlpha(1);
+      this._showPrompt(p, stLabel, stX, stY - 28);
     } else {
       p.setAlpha(0);
     }

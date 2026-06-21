@@ -1272,6 +1272,27 @@ var EnemyFactory = (function () {
 
   // ── Factory ────────────────────────────────────────────────────────────
 
+  // Type → subclass. Types not listed (trog_pygmy, trog_basher, scat_thug, …)
+  // use the base Enemy. Every constructor takes (scene, x, y, scaledDef);
+  // BrindleGrub ignores the def and always uses its own.
+  var ENEMY_CTORS = {
+    trog_virtuoso: TrogVirtuosoEnemy,
+    fairy:         FairyEnemy,
+    rot_sticker:   RotStickerEnemy,
+    goblin:        GoblinEnemy,
+    crack_camel:   CrackCamelEnemy,
+    skeleton:      SkeletonEnemy,
+    brindle_grub:  BrindleGrubEnemy,
+    danger_dingo:  DangerDingoEnemy,
+    scatterer:     ScattererEnemy,
+    bad_llama:     BadLlamaEnemy,
+    clurichaun:    ClurichaunnEnemy,
+    brindled_vespa: BrindledVespaEnemy,
+    kobold_rider:  KoboldRiderEnemy,
+    mind_horror:   MindHorrorEnemy,
+    laminak_elite: LaminakEliteEnemy,
+  };
+
   function create(scene, type, x, y, floorNum) {
     var def = DEFS[type];
     if (!def) def = DEFS.rat;
@@ -1284,25 +1305,8 @@ var EnemyFactory = (function () {
       xp:     Math.round(def.xp    * scale),
     });
 
-    if (type === 'trog_pygmy')    return new Enemy(scene, x, y, scaledDef);
-    if (type === 'trog_basher')   return new Enemy(scene, x, y, scaledDef);
-    if (type === 'trog_virtuoso') return new TrogVirtuosoEnemy(scene, x, y, scaledDef);
-    if (type === 'fairy')        return new FairyEnemy(scene, x, y, scaledDef);
-    if (type === 'rot_sticker')  return new RotStickerEnemy(scene, x, y, scaledDef);
-    if (type === 'goblin')       return new GoblinEnemy(scene, x, y, scaledDef);
-    if (type === 'crack_camel')  return new CrackCamelEnemy(scene, x, y, scaledDef);
-    if (type === 'skeleton')     return new SkeletonEnemy(scene, x, y, scaledDef);
-    if (type === 'brindle_grub')   return new BrindleGrubEnemy(scene, x, y);
-    if (type === 'danger_dingo')   return new DangerDingoEnemy(scene, x, y, scaledDef);
-    if (type === 'scatterer')      return new ScattererEnemy(scene, x, y, scaledDef);
-    if (type === 'bad_llama')      return new BadLlamaEnemy(scene, x, y, scaledDef);
-    if (type === 'scat_thug')      return new Enemy(scene, x, y, scaledDef);
-    if (type === 'clurichaun')     return new ClurichaunnEnemy(scene, x, y, scaledDef);
-    if (type === 'brindled_vespa') return new BrindledVespaEnemy(scene, x, y, scaledDef);
-    if (type === 'kobold_rider')   return new KoboldRiderEnemy(scene, x, y, scaledDef);
-    if (type === 'mind_horror')    return new MindHorrorEnemy(scene, x, y, scaledDef);
-    if (type === 'laminak_elite')  return new LaminakEliteEnemy(scene, x, y, scaledDef);
-    return new Enemy(scene, x, y, scaledDef);
+    var Ctor = ENEMY_CTORS[type] || Enemy;
+    return new Ctor(scene, x, y, scaledDef);
   }
 
   // ── Laminak Elite Rev-Up Consultant (Floor 2) — fairy-class manager mob ────

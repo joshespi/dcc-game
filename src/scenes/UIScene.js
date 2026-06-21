@@ -551,17 +551,19 @@ var UIScene = new Phaser.Class({
     title = title.replace(/^"|"$/g, '').trim();
     if (title.length > 50) title = title.substring(0, 47) + '...';
 
-    var cy = H * 0.22;
+    // Sit near the top so the badge clears the centered inventory/skills panels
+    // and the intro dialogue box; depth above both panels (inv 300, skills 310).
+    var cy = Math.round(H * 0.13);
     var bg = this.add.rectangle(W / 2, cy, 340, 54, 0x111108, 0.92)
-      .setStrokeStyle(2, 0xffdd44, 0.95).setDepth(300).setAlpha(0);
+      .setStrokeStyle(2, 0xffdd44, 0.95).setDepth(320).setAlpha(0);
     var header = this.add.text(W / 2, cy - 14, 'ACHIEVEMENT UNLOCKED', {
       fontFamily: 'monospace', fontSize: '10px', color: '#ffaa22',
-    }).setOrigin(0.5).setDepth(301).setAlpha(0);
+    }).setOrigin(0.5).setDepth(321).setAlpha(0);
     var titleText = this.add.text(W / 2, cy + 8, title, {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
       stroke: '#000000', strokeThickness: 2, align: 'center',
       wordWrap: { width: 320 }
-    }).setOrigin(0.5).setDepth(301).setAlpha(0);
+    }).setOrigin(0.5).setDepth(321).setAlpha(0);
 
     var all = [bg, header, titleText];
     this.tweens.add({
@@ -1639,6 +1641,20 @@ var UIScene = new Phaser.Class({
     }
   },
 
+  // Shared tile→color for both the minimap and the full map. Returns a CSS fill
+  // color, or null if the tile should be skipped (unrevealed, or not drawn).
+  _mapTileColor: function (dungeon, fog, tx, ty) {
+    var tile = dungeon.tiles[ty][tx];
+    var fogRevealed = fog && fog[ty * dungeon.mapW + tx];
+    var alwaysVisible = tile === DungeonGenerator.SAFE || tile === DungeonGenerator.GUILD;
+    if (fog && !fogRevealed && !alwaysVisible) return null;
+    if (tile === DungeonGenerator.FLOOR || tile === DungeonGenerator.DOOR || tile === DungeonGenerator.START) return '#334455';
+    if (tile === DungeonGenerator.STAIRS) return '#44ffaa';
+    if (tile === DungeonGenerator.SAFE)   return fogRevealed ? '#cc8833' : '#aa6622';
+    if (tile === DungeonGenerator.GUILD)  return '#6655cc';
+    return null;
+  },
+
   _drawMinimapViewport: function (dungeon, fog, cTx, cTy) {
     var ctx  = this._mmCanvas.getContext('2d');
     var size = this._mmSize;
@@ -1656,24 +1672,12 @@ var UIScene = new Phaser.Class({
         var tx = cTx + dx;
         if (tx < 0 || tx >= W) continue;
 
-        var tile = dungeon.tiles[ty][tx];
-        var alwaysVisible = tile === DungeonGenerator.SAFE || tile === DungeonGenerator.GUILD;
-        if (fog && !fog[ty * W + tx] && !alwaysVisible) continue;
+        var color = this._mapTileColor(dungeon, fog, tx, ty);
+        if (!color) continue;
 
         var px = (dx + R) * ts;
         var py = (dy + R) * ts;
-
-        if (tile === DungeonGenerator.FLOOR || tile === DungeonGenerator.DOOR || tile === DungeonGenerator.START) {
-          ctx.fillStyle = '#334455';
-        } else if (tile === DungeonGenerator.STAIRS) {
-          ctx.fillStyle = '#44ffaa';
-        } else if (tile === DungeonGenerator.SAFE) {
-          ctx.fillStyle = fog && fog[ty * W + tx] ? '#cc8833' : '#aa6622';
-        } else if (tile === DungeonGenerator.GUILD) {
-          ctx.fillStyle = '#6655cc';
-        } else {
-          continue;
-        }
+        ctx.fillStyle = color;
         ctx.fillRect(px, py, Math.max(1, ts - 0.5), Math.max(1, ts - 0.5));
       }
     }
@@ -1694,24 +1698,12 @@ var UIScene = new Phaser.Class({
 
     for (var ty = 0; ty < MH; ty++) {
       for (var tx = 0; tx < MW; tx++) {
-        var tile = dungeon.tiles[ty][tx];
-        var alwaysVisible = tile === DungeonGenerator.SAFE || tile === DungeonGenerator.GUILD;
-        if (fog && !fog[ty * MW + tx] && !alwaysVisible) continue;
+        var color = this._mapTileColor(dungeon, fog, tx, ty);
+        if (!color) continue;
 
         var px = offX + tx * scale;
         var py = offY + ty * scale;
-
-        if (tile === DungeonGenerator.FLOOR || tile === DungeonGenerator.DOOR || tile === DungeonGenerator.START) {
-          ctx.fillStyle = '#334455';
-        } else if (tile === DungeonGenerator.STAIRS) {
-          ctx.fillStyle = '#44ffaa';
-        } else if (tile === DungeonGenerator.SAFE) {
-          ctx.fillStyle = fog && fog[ty * MW + tx] ? '#cc8833' : '#aa6622';
-        } else if (tile === DungeonGenerator.GUILD) {
-          ctx.fillStyle = '#6655cc';
-        } else {
-          continue;
-        }
+        ctx.fillStyle = color;
         ctx.fillRect(px, py, ts, ts);
       }
     }

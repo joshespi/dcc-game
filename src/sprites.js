@@ -180,12 +180,16 @@ var SpriteGen = (function () {
     return c;
   }
 
-  function genTileset() {
-    var tiles = [tileFloor(), tileWall(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
+  // Stitch a tileset strip: [floor, wall, stairs, door, start, safeRoom, guildHall].
+  // Only the floor/wall tiles vary per theme; the trailing five are shared.
+  function genTilesetStrip(floorTile, wallTile) {
+    var tiles = [floorTile, wallTile, tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
     var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
     tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
     return c;
   }
+
+  function genTileset() { return genTilesetStrip(tileFloor(), tileWall()); }
 
   function tileFloorF2() {
     // Floor 2: white/light concrete floor, cracked
@@ -231,12 +235,7 @@ var SpriteGen = (function () {
     return c;
   }
 
-  function genTilesetFloor2() {
-    var tiles = [tileFloorF2(), tileWallF2(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
-    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
-    tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
-    return c;
-  }
+  function genTilesetFloor2() { return genTilesetStrip(tileFloorF2(), tileWallF2()); }
 
   function tileFloorF3() {
     // Floor 3 (The Over City): grey asphalt street with paving seams
@@ -274,12 +273,7 @@ var SpriteGen = (function () {
     return c;
   }
 
-  function genTilesetFloor3() {
-    var tiles = [tileFloorF3(), tileWallF3(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
-    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
-    tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
-    return c;
-  }
+  function genTilesetFloor3() { return genTilesetStrip(tileFloorF3(), tileWallF3()); }
 
   function tileFloorF4() {
     // Floor 4 (The Iron Tangle): riveted rusted metal plating
@@ -316,12 +310,7 @@ var SpriteGen = (function () {
     return c;
   }
 
-  function genTilesetFloor4() {
-    var tiles = [tileFloorF4(), tileWallF4(), tileStairs(), tileDoor(), tileStart(), tileSafeRoom(), tileGuildHall()];
-    var c = canvas(T * tiles.length, T), ctx = ctx2d(c);
-    tiles.forEach(function(t, i) { ctx.drawImage(t, i * T, 0); });
-    return c;
-  }
+  function genTilesetFloor4() { return genTilesetStrip(tileFloorF4(), tileWallF4()); }
 
   // ── CARL ──────────────────────────────────────────────────────────────────
   // Reference: leather jacket, light-blue heart boxer shorts, bare feet, dark messy hair
